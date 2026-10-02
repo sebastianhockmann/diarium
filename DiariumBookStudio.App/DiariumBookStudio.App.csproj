@@ -25,4 +25,11 @@
     </Page>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Layoutvorlage für den LaTeX-Export -->
+    <Content Include="Templates\diarybook.sty">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

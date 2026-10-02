@@ -18,7 +18,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v20";
+    public string AppVersion { get; } = "DiariumBookStudio v21";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
@@ -46,9 +46,20 @@ public partial class MainWindow : Window
             "DiariumBookStudio",
             Path.GetFileNameWithoutExtension(openDialog.FileName));
 
+        if (File.Exists(Path.Combine(projectRoot, "diarium-book-project.json")))
+        {
+            var answer = MessageBox.Show(this,
+                $"Für diese ZIP gibt es bereits ein Projekt:\n{projectRoot}\n\n" +
+                "Die Einträge werden neu eingelesen. Bearbeitete Texte, Prüfstatus, Bildauswahl, " +
+                "Bildunterschriften und Ortsnamen werden übernommen.\n\nFortfahren?",
+                "Erneut importieren", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+            if (answer != MessageBoxResult.OK) return;
+        }
+
         try
         {
             _project = DiariumImporter.ImportZip(openDialog.FileName, projectRoot);
+            ShowProjectSettings();
             RefreshEntryTree();
             StatusText.Text = $"Import fertig: {_project.Entries.Count} Einträge. Projekt: {_project.ProjectFile}";
         }
@@ -70,6 +81,7 @@ public partial class MainWindow : Window
         try
         {
             _project = BookProject.Load(openDialog.FileName);
+            ShowProjectSettings();
             RefreshEntryTree();
             StatusText.Text = $"Projekt geöffnet: {_project.ProjectFile}";
         }
@@ -86,7 +98,7 @@ public partial class MainWindow : Window
         StatusText.Text = $"Projekt gespeichert: {_project.ProjectFile}";
     }
 
-    private void ExportLatex_Click(object sender, RoutedEventArgs e)
+    private async void ExportLatex_Click(object sender, RoutedEventArgs e)
     {
         if (_project is null)
         {
@@ -110,13 +122,16 @@ public partial class MainWindow : Window
 
         try
         {
+            SetBuildProgress(true, "Erzeuge LaTeX-Datei und Karten...");
+            var texPath = await LatexExporter.ExportAsync(_project, saveDialog.FileName, CreateProgress());
             _project.Save();
-            var texPath = LatexExporter.Export(_project, saveDialog.FileName);
-            StatusText.Text = $"LaTeX erzeugt: {texPath}";
+            ShowEntry(_currentEntry);
+            SetBuildProgress(false, $"LaTeX erzeugt: {texPath}");
             MessageBox.Show(this, $"LaTeX wurde erzeugt:\n{texPath}\n\nMit LuaLaTeX kompilieren.", "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
+            SetBuildProgress(false, "LaTeX-Export fehlgeschlagen.");
             MessageBox.Show(this, ex.Message, "LaTeX-Export fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -141,10 +156,9 @@ public partial class MainWindow : Window
         try
         {
             SetBuildProgress(true, "Erzeuge LaTeX-Datei und Karten...");
-            await System.Windows.Threading.Dispatcher.Yield();
-
+            await LatexExporter.ExportAsync(_project, texPath, CreateProgress());
             _project.Save();
-            LatexExporter.Export(_project, texPath);
+            ShowEntry(_currentEntry);
 
             SetBuildProgress(true, "Starte LuaLaTeX, Lauf 1 von 2...");
             await RunLuaLatexAsync(texPath, jobName);
@@ -216,6 +230,8 @@ public partial class MainWindow : Window
                 "LuaLaTeX hat einen Fehler gemeldet. Details stehen in lualatex_error.txt im Ausgabeordner. Falls dort steht, dass eine PDF nicht geschrieben werden kann, ist sie wahrscheinlich noch in einem PDF-Viewer geöffnet.");
         }
     }
+
+    private IProgress<string> CreateProgress() => new Progress<string>(message => StatusText.Text = message);
 
     private void SetBuildProgress(bool isRunning, string message)
     {
@@ -297,6 +313,7 @@ public partial class MainWindow : Window
                 EntryTitle.Text = "Kein Eintrag ausgewählt";
                 EntryMeta.Text = string.Empty;
                 EditedTextBox.Text = string.Empty;
+                PlaceNameBox.Text = string.Empty;
                 ImagesControl.ItemsSource = null;
                 ImageCountText.Text = string.Empty;
                 DoneCheckBox.IsChecked = false;
@@ -306,6 +323,7 @@ public partial class MainWindow : Window
             EntryTitle.Text = entry.DisplayTitle;
             EntryMeta.Text = BuildEntryMeta(entry);
             EditedTextBox.Text = entry.EditedText;
+            PlaceNameBox.Text = entry.PlaceName;
             DoneCheckBox.IsChecked = entry.Done;
             ImagesControl.ItemsSource = entry.Images.OrderBy(i => i.Order).ToList();
             ImageCountText.Text = $"{entry.Images.Count(i => i.Selected)} von {entry.Images.Count} ausgewählt";
@@ -320,6 +338,44 @@ public partial class MainWindow : Window
     {
         if (_updatingUi) return;
         if (CurrentEntry is { } entry) entry.EditedText = EditedTextBox.Text;
+    }
+
+    private void PlaceNameBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_updatingUi) return;
+        if (CurrentEntry is { } entry) entry.PlaceName = PlaceNameBox.Text;
+    }
+
+    private void ShowProjectSettings()
+    {
+        _updatingUi = true;
+        try
+        {
+            BookTitleBox.Text = _project?.BookTitle ?? string.Empty;
+            BookSubtitleBox.Text = _project?.BookSubtitle ?? string.Empty;
+            PrintVersionCheckBox.IsChecked = _project?.PrintVersion == true;
+        }
+        finally
+        {
+            _updatingUi = false;
+        }
+    }
+
+    private void BookSettings_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_updatingUi || _project is null) return;
+        _project.BookTitle = BookTitleBox.Text;
+        _project.BookSubtitle = BookSubtitleBox.Text;
+        _project.PrintVersion = PrintVersionCheckBox.IsChecked == true;
+    }
+
+    /// <summary>Pro Eintrag gibt es höchstens ein Titelbild.</summary>
+    private void HeroCheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not ImageItem image || CurrentEntry is not { } entry) return;
+        foreach (var other in entry.Images.Where(i => !ReferenceEquals(i, image)))
+            other.IsHero = false;
+        image.Selected = true;
     }
 
     private void DoneCheckBox_Changed(object sender, RoutedEventArgs e)

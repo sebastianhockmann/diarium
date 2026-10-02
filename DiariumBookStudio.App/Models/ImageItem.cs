@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 using System.Collections.Generic;
 using System.IO;
 
@@ -8,12 +9,17 @@ namespace DiariumBookStudio.Models;
 public class ImageItem : INotifyPropertyChanged
 {
     private bool _selected;
-    private string _role = "Galerie";
+    private bool _isHero;
     private string _caption = string.Empty;
     private int _order;
 
+    /// <summary>Pfad relativ zur Diarium-HTML-Datei, z. B. „media/2026-05-01_…/IMG_6210.jpg“.</summary>
     public string RelativePath { get; set; } = string.Empty;
+
+    /// <summary>Absoluter Pfad. Wird beim Laden aus Projektordner und RelativePath neu berechnet.</summary>
+    [JsonIgnore]
     public string FullPath { get; set; } = string.Empty;
+
     public string FileName => Path.GetFileName(RelativePath);
 
     public bool Selected
@@ -22,14 +28,11 @@ public class ImageItem : INotifyPropertyChanged
         set => SetField(ref _selected, value);
     }
 
-    public string Role
+    /// <summary>Titelbild: wird groß über dem Eintragstext gesetzt.</summary>
+    public bool IsHero
     {
-        get => _role;
-        set
-        {
-            if (SetField(ref _role, value))
-                OnPropertyChanged(nameof(IsMainImage));
-        }
+        get => _isHero;
+        set => SetField(ref _isHero, value);
     }
 
     public string Caption
@@ -42,24 +45,6 @@ public class ImageItem : INotifyPropertyChanged
     {
         get => _order;
         set => SetField(ref _order, value);
-    }
-
-    public bool IsMainImage
-    {
-        get => string.Equals(Role, "Hauptbild", System.StringComparison.OrdinalIgnoreCase);
-        set
-        {
-            if (value)
-            {
-                Role = "Hauptbild";
-                OnPropertyChanged();
-            }
-            else if (IsMainImage)
-            {
-                Role = "Galerie";
-                OnPropertyChanged();
-            }
-        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

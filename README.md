@@ -4,14 +4,23 @@ Kleiner WPF-Prototyp für Visual Studio, um einen Diarium-Export in eine Buchfas
 
 ## Aktueller Funktionsumfang
 
-- Diarium-ZIP importieren
+- Diarium-ZIP (HTML-Export) importieren; erneuter Import übernimmt bisherige Bearbeitungen
 - Einträge nach Monaten als Baum anzeigen
 - bereits geprüfte Einträge grün markieren
-- Tagebuchtext bearbeiten, ohne Diarium zu verändern
-- Bilder auswählen, sortieren und Rollen vergeben: Hauptbild, Galerie, Klein
-- Bildunterschriften pflegen
-- Projekt als JSON speichern
-- LaTeX-Datei in frei wählbaren Zielpfad exportieren
+- Tagebuchtext bearbeiten, ohne Diarium zu verändern (`**fett**`, `*kursiv*`, Listen mit `- `)
+- Bilder auswählen, sortieren, ein Titelbild pro Eintrag festlegen
+- Bildunterschriften pflegen, Ortsnamen pflegen (werden sonst automatisch ermittelt)
+- Buchtitel und Untertitel festlegen, Druckversion mit Beschnittzugabe
+- Projekt als JSON speichern (Pfade relativ, Projektordner ist verschiebbar)
+- LaTeX-Datei in frei wählbaren Zielpfad exportieren, PDF mit LuaLaTeX erzeugen
+
+## Layout anpassen
+
+Das gesamte Design steckt in `DiariumBookStudio.App/Templates/diarybook.sty`
+(Schrift, Farben, Eintragskopf, Monatsseiten, Fotos, Seitenformat). `book.tex`
+enthält nur Daten. Für ein projektspezifisches Layout die Datei als
+`diarybook.sty` in den Projektordner (neben `diarium-book-project.json`) kopieren
+und dort anpassen – sie hat beim Export Vorrang.
 
 ## Start
 
@@ -159,3 +168,42 @@ Hinweis zur Karte: Beim Erzeugen der LaTeX-Datei wird Internetzugang benötigt, 
   - kein Hauptbild mehr nötig
   - alle ausgewählten Bilder werden gleich groß in einer 3-Spalten-Galerie gesetzt
 - Die Hauptbild-Checkbox wurde aus der App entfernt.
+
+
+## Version 21 (2026-10-02)
+
+Fehlerbehebungen:
+
+- Erneuter Import einer ZIP überschreibt keine Bearbeitungen mehr (Text, Prüfstatus,
+  Bildauswahl, Bildunterschriften, Ortsnamen werden über einen Eintragsschlüssel übernommen).
+- Mehrere Einträge am selben Tag überschreiben sich nicht mehr gegenseitig Bilder und Karten.
+- Emoji im PDF: Metadaten-Symbole sind jetzt Font-Awesome-Icons, Emoji im Text werden über
+  „Segoe UI Emoji“ gesetzt (vorher fehlten sie stillschweigend).
+- LaTeX-Escaping in einem Durchlauf (Backslash wurde vorher zerstört); `"` wird zu „…“.
+- Formatierungen (fett, kursiv, Listen) und Zeilenumbrüche aus Diarium bleiben erhalten.
+- Datum wird auch bei englischer Diarium-Sprache bzw. aus dem Medienordner erkannt.
+- Bildpfade werden relativ gespeichert; Buchtitel wird aus dem Zeitraum vorgeschlagen.
+- Export läuft im Hintergrund, die Oberfläche friert bei Kartendownloads nicht mehr ein.
+
+Neues Layout (`Templates/diarybook.sty`):
+
+- EB Garamond (Fallback Libertinus), Erstzeileneinzug, Initiale am Eintragsanfang,
+  Monat als Kolumnentitel, Seitenzahl außen.
+- Eintragskopf: Datum in Kapitälchen, Titel, Zeile mit Ort, Wetter, Bewertung und Tags;
+  Karte mit abgerundeten Ecken rechts daneben.
+- Monatsseiten mit Statistik (Einträge, Fotos, Orte) und eigene Titelseite.
+- Fotos ohne Beschnitt in Blocksatz-Reihen (Zeilen füllen exakt die Satzbreite),
+  drei Bilder als großes Bild plus zwei kleine, optional Titelbild über dem Text.
+- EXIF-Drehung wird berücksichtigt; nicht LaTeX-taugliche Formate werden nach JPEG umgewandelt.
+
+Karten und Orte:
+
+- Karten in doppelter Auflösung, Kachel-Cache unter `cache/tiles` im Projektordner,
+  OSM-konformer User-Agent statt gefälschtem Referer.
+- Ortsnamen (z. B. „Gera“) werden per Nominatim ermittelt, im Projekt gespeichert und
+  sind in der App editierbar.
+
+Druck:
+
+- Option „Druckversion“: 3 mm Beschnittzugabe, TrimBox/BleedBox im PDF,
+  Seitenzahl wird auf ein Vielfaches von 4 aufgefüllt.

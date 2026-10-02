@@ -1,0 +1,285 @@
+% =====================================================================
+%  diarybook.sty – Layout für DiariumBookStudio
+%
+%  Das gesamte Design des Buches steckt in dieser Datei. book.tex enthält
+%  nur noch Daten und ruft die Befehle unten auf.
+%
+%  Eigene Anpassungen: diese Datei als „diarybook.sty“ in den Projektordner
+%  (neben diarium-book-project.json) kopieren und dort ändern. Die App
+%  verwendet dann diese Version statt der mitgelieferten.
+% =====================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{diarybook}[2026/10/02 DiariumBookStudio Layout v21]
+
+\newif\ifdiary@print
+\DeclareOption{print}{\diary@printtrue}
+\ProcessOptions\relax
+
+% ---------------------------------------------------------------------
+%  Seitenformat A5 – in der Druckversion mit 3 mm Beschnittzugabe
+% ---------------------------------------------------------------------
+\RequirePackage{geometry}
+\ifdiary@print
+  \geometry{paperwidth=154mm,paperheight=216mm,
+            layoutwidth=148mm,layoutheight=210mm,
+            layouthoffset=3mm,layoutvoffset=3mm}
+  % Endformat (TrimBox) und Beschnitt (BleedBox) für die Druckerei, Angaben in bp.
+  \pdfvariable pageattr{/TrimBox [8.50394 8.50394 428.03150 603.77953] /BleedBox [0 0 436.53543 612.28346]}
+\else
+  \geometry{paperwidth=148mm,paperheight=210mm}
+\fi
+\geometry{inner=19mm,outer=15mm,top=18mm,bottom=20mm,headsep=6mm,footskip=10mm}
+
+% ---------------------------------------------------------------------
+%  Farben
+% ---------------------------------------------------------------------
+\RequirePackage{xcolor}
+\definecolor{DiaryInk}{HTML}{222222}
+\definecolor{DiaryAccent}{HTML}{2E6A70}
+\definecolor{DiaryMuted}{HTML}{6B6B6B}
+\definecolor{DiaryRule}{HTML}{BFBFBF}
+
+% ---------------------------------------------------------------------
+%  Schrift: EB Garamond, sonst Libertinus, sonst Latin Modern.
+%  Emoji im Text werden über eine Fallback-Schrift gesetzt (Windows: Segoe UI Emoji).
+% ---------------------------------------------------------------------
+\RequirePackage{fontspec}
+\IfFontExistsTF{seguiemj.ttf}{%
+  \directlua{luaotfload.add_fallback("diaryemoji", {"seguiemj.ttf:mode=harf;"})}%
+  \defaultfontfeatures{RawFeature={fallback=diaryemoji}}%
+}{}
+\IfFontExistsTF{EBGaramond-Regular.otf}{%
+  \setmainfont{EBGaramond}[Extension=.otf,UprightFont=*-Regular,ItalicFont=*-Italic,
+    BoldFont=*-SemiBold,BoldItalicFont=*-SemiBoldItalic,Numbers=OldStyle]%
+}{%
+  \IfFontExistsTF{LibertinusSerif-Regular.otf}{%
+    \setmainfont{LibertinusSerif}[Extension=.otf,UprightFont=*-Regular,ItalicFont=*-Italic,
+      BoldFont=*-Semibold,BoldItalicFont=*-SemiboldItalic]%
+  }{%
+    \setmainfont{Latin Modern Roman}%
+  }%
+}
+\RequirePackage{fontawesome5}
+
+% ---------------------------------------------------------------------
+%  Satz
+% ---------------------------------------------------------------------
+\RequirePackage[ngerman]{babel}
+\RequirePackage{microtype}
+\RequirePackage{graphicx}
+\RequirePackage{lettrine}
+\RequirePackage{tikz}
+\RequirePackage{xurl}
+\RequirePackage[hidelinks]{hyperref}
+\RequirePackage{bookmark}
+
+\color{DiaryInk}
+\setlength{\parindent}{1.1em}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{1.5em}
+\raggedbottom
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\frenchspacing
+\setcounter{tocdepth}{1}
+
+% Überschriften (z. B. Inhaltsverzeichnis) in der Buchschrift statt KOMA-Serifenlos
+\setkomafont{disposition}{\normalfont\color{DiaryAccent}}
+\setkomafont{chapter}{\Huge}
+\setkomafont{chapterentry}{\normalfont\color{DiaryAccent}}
+\setkomafont{chapterentrypagenumber}{\normalfont\color{DiaryAccent}}
+
+% Listen im Text kompakt
+\RequirePackage{enumitem}
+\setlist{nosep,leftmargin=1.4em}
+\setlist[itemize]{label=\textcolor{DiaryAccent}{\textbullet}}
+
+% ---------------------------------------------------------------------
+%  Kopf- und Fußzeile: Monat oben außen, Seitenzahl unten außen
+% ---------------------------------------------------------------------
+\RequirePackage{scrlayer-scrpage}
+\clearpairofpagestyles
+\ohead{\diary@running}
+\ofoot*{\pagemark}
+\setkomafont{pagehead}{\normalfont\footnotesize\color{DiaryMuted}}
+\setkomafont{pagefoot}{\normalfont\footnotesize\color{DiaryMuted}}
+\setkomafont{pagenumber}{}
+\def\diary@running{}
+\pagestyle{scrheadings}
+
+% ---------------------------------------------------------------------
+%  Schriftstile – hier lassen sich die Einträge am einfachsten umgestalten
+% ---------------------------------------------------------------------
+\newcommand\DiaryDateFont{\small\color{DiaryAccent}\scshape\addfontfeatures{LetterSpace=6}}
+\newcommand\DiaryTitleFont{\fontsize{17}{21}\selectfont\color{DiaryInk}}
+\newcommand\DiaryMetaFont{\footnotesize\color{DiaryMuted}}
+\newcommand\DiaryCaptionFont{\scriptsize\itshape\color{DiaryMuted}}
+\newcommand\DiaryMetaSep{\quad}
+% Mindestplatz auf der Seite für Trennzeichen, Eintragskopf und die ersten Textzeilen
+\newcommand\DiaryEntryMinSpace{72mm}
+
+% ---------------------------------------------------------------------
+%  Titelseite
+%  #1 Titel  #2 Untertitel  #3 Zeitraum
+% ---------------------------------------------------------------------
+\newcommand\DiaryTitlePage[3]{%
+  \begin{titlepage}
+    \null\vfill
+    \begin{center}
+      {\color{DiaryAccent}\rule{28mm}{0.6pt}\par}
+      \vspace{7ex}
+      {\fontsize{28}{34}\selectfont #1\par}
+      \if\relax\detokenize{#2}\relax\else
+        \vspace{2ex}{\large\itshape\color{DiaryMuted}#2\par}
+      \fi
+      \vspace{7ex}
+      {\small\color{DiaryAccent}\scshape\addfontfeatures{LetterSpace=10}\MakeLowercase{#3}\par}
+      \vspace{3ex}
+      {\color{DiaryAccent}\rule{28mm}{0.6pt}\par}
+    \end{center}
+    \vfill\vfill\null
+  \end{titlepage}
+}
+
+% ---------------------------------------------------------------------
+%  Monatsseite
+%  #1 Monatsname  #2 Jahr  #3 Statistik („22 Einträge · 248 Fotos“)
+% ---------------------------------------------------------------------
+\newcommand\DiaryMonth[3]{%
+  \clearpage
+  \thispagestyle{empty}%
+  \phantomsection
+  \addcontentsline{toc}{chapter}{#1 #2}%
+  \gdef\diary@running{#1 #2}%
+  \global\diary@separatorfalse
+  \null\vfill
+  \begin{center}
+    {\color{DiaryAccent}\fontsize{50}{54}\selectfont #1\par}
+    \vspace{1.5ex}
+    {\large\addfontfeatures{LetterSpace=25}#2\par}
+    \vspace{4ex}
+    {\color{DiaryRule}\rule{22mm}{0.5pt}\par}
+    \if\relax\detokenize{#3}\relax\else
+      \vspace{3ex}{\small\color{DiaryMuted}#3\par}
+    \fi
+  \end{center}
+  \vfill\vfill\null
+  \clearpage
+}
+
+% ---------------------------------------------------------------------
+%  Eintragskopf
+%  #1 Datum  #2 Titel  #3 Metadatenzeile  #4 Kartendatei (leer = keine Karte)
+%  #5 Text für das Inhaltsverzeichnis
+% ---------------------------------------------------------------------
+\newcommand\DiaryEntryHead[5]{%
+  \par\penalty-100 % gibt dem Seitenumbruch-Algorithmus Gelegenheit, \pagetotal zu aktualisieren
+  % Reicht der Platz für Kopf und erste Zeilen nicht, neue Seite – dann ohne Trennzeichen,
+  % damit es nicht allein oben auf der Seite steht.
+  \dimen@=\pagegoal \advance\dimen@ -\pagetotal
+  \ifdim\pagegoal=\maxdimen
+  \else\ifdim\dimen@<\DiaryEntryMinSpace
+    \newpage
+  \else
+    \ifdiary@separator\DiarySeparator\fi
+  \fi\fi
+  \global\diary@separatortrue
+  \phantomsection
+  \addcontentsline{toc}{section}{#5}%
+  \noindent
+  \if\relax\detokenize{#4}\relax
+    \begin{minipage}[t]{\linewidth}\diary@headtext{#1}{#2}{#3}\end{minipage}%
+  \else
+    \begin{minipage}[t]{0.58\linewidth}\diary@headtext{#1}{#2}{#3}\end{minipage}%
+    \hfill
+    \begin{minipage}[t]{0.37\linewidth}\vspace{0pt}\DiaryMap{#4}\end{minipage}%
+  \fi
+  \par\vspace{1.4\baselineskip}%
+  \@afterindentfalse\@afterheading
+}
+\newcommand\diary@headtext[3]{%
+  \vspace{0pt}%
+  {\DiaryDateFont\MakeLowercase{#1}\par}%
+  \vspace{0.6ex}%
+  {\DiaryTitleFont\raggedright #2\par}%
+  \if\relax\detokenize{#3}\relax\else
+    \vspace{1.2ex}{\DiaryMetaFont\raggedright #3\par}%
+  \fi
+}
+
+% Bausteine für die Metadatenzeile
+\newcommand\DiaryPlace[1]{\mbox{\textcolor{DiaryAccent}{\faMapMarker*}~#1}}
+\newcommand\DiaryWeather[1]{\mbox{\textcolor{DiaryAccent}{\faCloudSun}~#1}}
+\newcommand\DiaryRating[1]{\mbox{\textcolor{DiaryAccent}{\foreach\diary@i in {1,...,#1}{\faStar}}}}
+\newcommand\DiaryTags[1]{\mbox{\textcolor{DiaryAccent}{\faTag}~#1}}
+
+% Karte mit abgerundeten Ecken und feinem Rahmen
+\newsavebox\diary@mapbox
+\newcommand\DiaryMap[1]{%
+  \sbox\diary@mapbox{\includegraphics[width=\linewidth]{#1}}%
+  \begin{tikzpicture}
+    \clip[rounded corners=1.6mm] (0,0) rectangle (\wd\diary@mapbox,\ht\diary@mapbox);
+    \node[anchor=south west,inner sep=0pt] at (0,0) {\usebox\diary@mapbox};
+    \draw[DiaryRule,line width=0.8pt,rounded corners=1.6mm] (0,0) rectangle (\wd\diary@mapbox,\ht\diary@mapbox);
+  \end{tikzpicture}%
+}
+
+% Initiale am Anfang des Eintrags.  #1 erster Buchstabe  #2 Rest des ersten Wortes
+\newcommand\DiaryInitial[2]{\lettrine[lines=2,findent=0.15em,nindent=0pt]{\textcolor{DiaryAccent}{#1}}{#2}}
+
+% ---------------------------------------------------------------------
+%  Fotos
+% ---------------------------------------------------------------------
+% Titelbild über dem Text.  #1 Datei  #2 Bildunterschrift
+\newcommand\DiaryHero[2]{%
+  \par\noindent
+  \begin{minipage}{\linewidth}\centering
+    \includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{#1}%
+    \if\relax\detokenize{#2}\relax\else\par\vspace{0.5ex}{\DiaryCaptionFont #2\par}\fi
+  \end{minipage}%
+  \par\vspace{1.2\baselineskip}%
+}
+
+% Ein Foto in einer Galeriezeile.  #1 Breite als Anteil von \linewidth  #2 Datei  #3 Bildunterschrift
+\newcommand\DiaryPhoto[3]{%
+  \begin{minipage}[t]{#1\linewidth}\vspace{0pt}%
+    \includegraphics[width=\linewidth]{#2}%
+    \if\relax\detokenize{#3}\relax\else\par\vspace{0.4ex}{\DiaryCaptionFont\raggedright #3\par}\fi
+  \end{minipage}%
+}
+
+% Galerie-Rahmen: Abstand zum Text und zwischen den Zeilen
+\newenvironment{DiaryGallery}{\par\vspace{0.9\baselineskip}}{\par}
+\newcommand\DiaryGalleryRow{\par\nointerlineskip\noindent}
+
+% Abschluss eines Eintrags
+\newcommand\DiaryEntryEnd{\par\vspace{1.6\baselineskip}}
+
+% Trennzeichen zwischen zwei Einträgen. Es wird mit dem folgenden Eintragskopf
+% zusammen gesetzt, damit es nie allein unten oder oben auf einer Seite steht.
+% Nach einer Monatsseite entfällt es.
+\newif\ifdiary@separator
+\newcommand\DiarySeparator{%
+  \centerline{\color{DiaryRule}\rule[0.55ex]{14mm}{0.4pt}\enspace
+    \textcolor{DiaryAccent}{\scriptsize\faLeaf}\enspace\rule[0.55ex]{14mm}{0.4pt}}%
+  \par\nopagebreak\vspace{1.6\baselineskip}%
+}
+
+% ---------------------------------------------------------------------
+%  Druckversion: Seitenzahl auf ein Vielfaches von 4 auffüllen
+% ---------------------------------------------------------------------
+\newcommand\DiaryFinish{%
+  \clearpage
+  \ifdiary@print
+    \directlua{
+      local n = \the\ReadonlyShipoutCounter
+      local missing = 4 * math.ceil(n / 4) - n
+      for i = 1, missing do
+        tex.sprint("\string\\null\string\\thispagestyle{empty}\string\\clearpage")
+      end
+    }%
+  \fi
+}
+
+\endinput
