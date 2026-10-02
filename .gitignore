@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+source/
+output/
+*.aux
+*.log
+*.toc
+*.pdf
+*.zip
