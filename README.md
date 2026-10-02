@@ -236,3 +236,8 @@ Fehlerbehebungen:
 - Verständliche Fehlermeldung bei LuaLaTeX-Fehlern: eigentliche Fehlerzeile, betroffener
   Eintrag (Datum und Titel) und Hinweise für bekannte Fälle (PDF im Viewer geöffnet, Datei fehlt,
   LuaLaTeX nicht installiert).
+- Einträge nur mit Titel (ohne Text und Fotos) erscheinen als einzeilige Kurznotiz;
+  Einträge ganz ohne Inhalt werden ausgelassen (Hinweis in `map_debug.txt`).
+- Keine Initiale bei sehr kurzen Texten (sie ragte sonst in die Fotos).
+- Vorschaubilder in der App werden verkleinert geladen und die Bilderliste ist virtualisiert –
+  wichtig bei Einträgen mit über 100 Fotos.

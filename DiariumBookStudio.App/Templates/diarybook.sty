@@ -224,6 +224,21 @@
   \fi
 }
 
+% Kurznotiz: Eintrag nur mit Titel (ohne Text und Fotos) – eine Zeile statt eines großen Kopfs.
+%  #1 Datum  #2 Titel  #3 Metadatenzeile  #4 Text für das Inhaltsverzeichnis
+\newcommand\DiaryShortEntry[4]{%
+  \par\penalty-100
+  \let\diary@next\relax
+  \ifdim\pagegoal=\maxdimen\else\ifdiary@separator\let\diary@next\DiarySeparator\fi\fi
+  \diary@next
+  \global\diary@separatortrue
+  \phantomsection
+  \addcontentsline{toc}{section}{#4}%
+  \noindent{\DiaryDateFont\MakeLowercase{#1}}\quad{\itshape #2}%
+  \if\relax\detokenize{#3}\relax\else\par\nopagebreak\noindent{\DiaryMetaFont #3}\fi
+  \par\vspace{1.6\baselineskip}%
+}
+
 % Bausteine für die Metadatenzeile
 \newcommand\DiaryPlace[1]{\mbox{\textcolor{DiaryAccent}{\faMapMarker*}~#1}}
 \newcommand\DiaryWeather[1]{\mbox{\textcolor{DiaryAccent}{\faCloudSun}~#1}}

@@ -12,6 +12,9 @@ namespace DiariumBookStudio.Services;
 /// </summary>
 public static class LatexText
 {
+    /// <summary>Etwa drei Zeilen bei A5 – darunter wird keine Initiale gesetzt.</summary>
+    private const int MinInitialParagraphLength = 200;
+
     /// <summary>Maskiert LaTeX-Sonderzeichen in einem Durchlauf und setzt „deutsche“ Anführungszeichen.</summary>
     public static string Escape(string? value)
     {
@@ -69,7 +72,9 @@ public static class LatexText
             {
                 if (paragraph.Count == 0) return;
                 var latex = string.Join("\\newline\n", paragraph.Select(Inline));
-                if (first && withInitial) latex = AddInitial(latex);
+                // Die Initiale ist zwei Zeilen hoch; bei kürzeren Absätzen ragt sie in die Fotos darunter.
+                if (first && withInitial && paragraph.Sum(l => l.Length) >= MinInitialParagraphLength)
+                    latex = AddInitial(latex);
                 first = false;
                 output.Add(latex);
                 paragraph.Clear();

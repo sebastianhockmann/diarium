@@ -60,6 +60,14 @@ public static class LatexExporter
         var maps = new MapService(Path.Combine(project.ProjectRoot, "cache", "tiles"), Log, project.GrayAccents);
 
         var entries = project.BookEntries.OrderBy(e => e.Date ?? DateTime.MaxValue).ThenBy(e => e.Key).ToList();
+
+        // Einträge ganz ohne Inhalt (kein Titel, kein Text, keine Fotos) weglassen.
+        // Nur mit Titel werden sie als Kurznotiz gesetzt (siehe AppendEntry).
+        foreach (var empty in entries.Where(e => IsEmpty(e) && string.IsNullOrWhiteSpace(e.Title)).ToList())
+        {
+            Log($"Leerer Eintrag ausgelassen: {empty.DisplayTitle}");
+            entries.Remove(empty);
+        }
         if (entries.Count == 0)
             throw new InvalidOperationException(project.Year is { } year
                 ? $"Für das Jahr {year} gibt es keine Einträge."
@@ -112,10 +120,13 @@ public static class LatexExporter
         var title = string.IsNullOrWhiteSpace(entry.Title) ? shortDate : entry.Title;
         var toc = string.IsNullOrWhiteSpace(entry.Title) ? shortDate : $"{shortDate} · {entry.Title}";
 
+        var isShortEntry = IsEmpty(entry);
+
         string? mapFile = null;
         if (MapService.TryParseLatLon(entry.Location, out var lat, out var lon))
         {
-            mapFile = maps.CreateMap(lat, lon, imageDir);
+            if (!isShortEntry)
+                mapFile = maps.CreateMap(lat, lon, imageDir);
             if (string.IsNullOrWhiteSpace(entry.PlaceName))
                 entry.PlaceName = maps.ReverseGeocode(lat, lon) ?? string.Empty;
         }
@@ -126,6 +137,11 @@ public static class LatexExporter
 
         tex.AppendLine();
         tex.AppendLine($"% ---- {entry.Key} ----");
+        if (isShortEntry)
+        {
+            tex.AppendLine($"\\DiaryShortEntry{{{LatexText.Escape(longDate)}}}{{{LatexText.Escape(title)}}}{{{BuildMetaLine(entry)}}}{{{LatexText.Escape(toc)}}}");
+            return;
+        }
         tex.AppendLine($"\\DiaryEntryHead{{{LatexText.Escape(longDate)}}}{{{LatexText.Escape(title)}}}{{{BuildMetaLine(entry)}}}{{{(mapFile is null ? string.Empty : "images/" + mapFile)}}}{{{LatexText.Escape(toc)}}}");
 
         var selected = entry.Images.Where(i => i.Selected).OrderBy(i => i.Order).ToList();
@@ -151,6 +167,9 @@ public static class LatexExporter
 
         tex.AppendLine("\\DiaryEntryEnd");
     }
+
+    public static bool IsEmpty(EntryModel entry)
+        => string.IsNullOrWhiteSpace(entry.EditedText?.Replace(' ', ' ')) && !entry.Images.Any(i => i.Selected);
 
     private static string BuildMetaLine(EntryModel entry)
     {

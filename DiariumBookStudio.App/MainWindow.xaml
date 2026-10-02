@@ -2,7 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:DiariumBookStudio.Models"
+        xmlns:local="clr-namespace:DiariumBookStudio"
         Title="Diarium Book Studio v22" Height="820" Width="1350" MinHeight="650" MinWidth="1100">
+    <Window.Resources>
+        <local:ThumbnailConverter x:Key="Thumbnail" DecodePixelWidth="240" />
+    </Window.Resources>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Datei">
@@ -157,8 +161,21 @@
                         <Button Content="Erste 6" Margin="0,0,6,0" Click="SelectFirstSix_Click" />
                         <TextBlock x:Name="ImageCountText" VerticalAlignment="Center" Foreground="Gray" />
                     </StackPanel>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="ImagesControl">
+                    <!-- Virtualisiert: Nur sichtbare Bilder werden geladen (wichtig bei Einträgen mit vielen Fotos). -->
+                        <ItemsControl x:Name="ImagesControl" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                      ScrollViewer.CanContentScroll="True">
+                            <ItemsControl.Template>
+                                <ControlTemplate TargetType="ItemsControl">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" CanContentScroll="True" Focusable="False">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </ControlTemplate>
+                            </ItemsControl.Template>
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,0,8">
@@ -167,7 +184,7 @@
                                                 <ColumnDefinition Width="130" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <Image Source="{Binding FullPath}" Width="120" Height="120" Stretch="UniformToFill" />
+                                            <Image Source="{Binding FullPath, Converter={StaticResource Thumbnail}}" Width="120" Height="120" Stretch="UniformToFill" />
                                             <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                                 <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                                 <CheckBox Content="Ins Buch übernehmen" IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0" />
@@ -185,7 +202,6 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
                 </DockPanel>
             </GroupBox>
         </Grid>
