@@ -228,3 +228,11 @@ Druckkosten:
 - Option „Akzente in Graustufen“: Datum, Symbole, Linien und Karten in Grau. Seiten ohne Fotos
   enthalten dann keine Farbe und werden z. B. bei epubli als Schwarz-Weiß-Seiten berechnet.
   Text und Linien sind jetzt immer als echte Graustufen (DeviceGray) definiert.
+
+Fehlerbehebungen:
+
+- LuaLaTeX brach mit „Incomplete \ifdim“ ab, wenn auf einen Eintrag ohne Text und ohne Fotos
+  ein Eintrag folgte, der auf eine neue Seite umbrechen musste.
+- Verständliche Fehlermeldung bei LuaLaTeX-Fehlern: eigentliche Fehlerzeile, betroffener
+  Eintrag (Datum und Titel) und Hinweise für bekannte Fälle (PDF im Viewer geöffnet, Datei fehlt,
+  LuaLaTeX nicht installiert).

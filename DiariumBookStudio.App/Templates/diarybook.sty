@@ -187,13 +187,19 @@
   \par\penalty-100 % gibt dem Seitenumbruch-Algorithmus Gelegenheit, \pagetotal zu aktualisieren
   % Reicht der Platz für Kopf und erste Zeilen nicht, neue Seite – dann ohne Trennzeichen,
   % damit es nicht allein oben auf der Seite steht.
+  % Die Aktion wird erst nach den Bedingungen ausgeführt: ein Seitenumbruch innerhalb
+  % von \ifdim führt sonst zu „Incomplete \ifdim“.
   \dimen@=\pagegoal \advance\dimen@ -\pagetotal
+  \let\diary@next\relax
   \ifdim\pagegoal=\maxdimen
-  \else\ifdim\dimen@<\DiaryEntryMinSpace
-    \newpage
   \else
-    \ifdiary@separator\DiarySeparator\fi
-  \fi\fi
+    \ifdim\dimen@<\DiaryEntryMinSpace
+      \let\diary@next\newpage
+    \else
+      \ifdiary@separator\let\diary@next\DiarySeparator\fi
+    \fi
+  \fi
+  \diary@next
   \global\diary@separatortrue
   \phantomsection
   \addcontentsline{toc}{section}{#5}%
@@ -264,7 +270,8 @@
 \newcommand\DiaryGalleryRow{\par\nointerlineskip\noindent}
 
 % Abschluss eines Eintrags
-\newcommand\DiaryEntryEnd{\par\vspace{1.6\baselineskip}}
+% Setzt auch die Absatz-Steuerung des Eintragskopfs zurück – nötig bei Einträgen ohne Text.
+\newcommand\DiaryEntryEnd{\par\@nobreakfalse\everypar{}\vspace{1.6\baselineskip}}
 
 % Trennzeichen zwischen zwei Einträgen. Es wird mit dem folgenden Eintragskopf
 % zusammen gesetzt, damit es nie allein unten oder oben auf einer Seite steht.

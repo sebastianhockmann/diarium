@@ -251,8 +251,18 @@ public partial class MainWindow : Window
             StandardErrorEncoding = Encoding.UTF8
         };
 
-        using var process = Process.Start(psi)
-            ?? throw new InvalidOperationException("LuaLaTeX konnte nicht gestartet werden. Ist MiKTeX installiert und lualatex im PATH?");
+        Process? started;
+        try
+        {
+            started = Process.Start(psi);
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            started = null;
+        }
+        using var process = started
+            ?? throw new InvalidOperationException("LuaLaTeX wurde nicht gefunden. Ist MiKTeX installiert und „lualatex“ im PATH? " +
+                                                   "Nach der Installation von MiKTeX die App neu starten.");
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
@@ -265,8 +275,7 @@ public partial class MainWindow : Window
         {
             var logPath = Path.Combine(workingDirectory, "lualatex_error.txt");
             await File.WriteAllTextAsync(logPath, stdout + Environment.NewLine + stderr, Encoding.UTF8);
-            throw new InvalidOperationException(
-                "LuaLaTeX hat einen Fehler gemeldet. Details stehen in lualatex_error.txt im Ausgabeordner. Falls dort steht, dass eine PDF nicht geschrieben werden kann, ist sie wahrscheinlich noch in einem PDF-Viewer geöffnet.");
+            throw new InvalidOperationException(LatexErrorReport.Describe(stdout, texPath, logPath));
         }
     }
 
