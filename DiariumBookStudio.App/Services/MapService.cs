@@ -34,12 +34,14 @@ public sealed class MapService
     private readonly string _tileCacheDir;
     private readonly Action<string> _log;
     private readonly Dictionary<string, string?> _placeCache = new();
+    private readonly bool _grayscale;
     private bool _geocodingDisabled;
 
-    public MapService(string tileCacheDir, Action<string> log)
+    public MapService(string tileCacheDir, Action<string> log, bool grayscale = false)
     {
         _tileCacheDir = tileCacheDir;
         _log = log;
+        _grayscale = grayscale;
     }
 
     private static HttpClient CreateClient()
@@ -65,7 +67,8 @@ public sealed class MapService
     /// <summary>Erzeugt (oder verwendet) eine Karten-PNG. Gibt bei Fehlern null zurück – dann erscheint keine Karte.</summary>
     public string? CreateMap(double lat, double lon, string imageDir)
     {
-        var fileName = string.Create(CultureInfo.InvariantCulture, $"map_{lat:0.00000}_{lon:0.00000}.png");
+        var suffix = _grayscale ? "_gray" : string.Empty;
+        var fileName = string.Create(CultureInfo.InvariantCulture, $"map_{lat:0.00000}_{lon:0.00000}{suffix}.png");
         var filePath = Path.Combine(imageDir, fileName);
         if (File.Exists(filePath)) return fileName;
 
@@ -125,8 +128,10 @@ public sealed class MapService
         // 96 dpi: dann entspricht eine Zeicheneinheit genau einem Pixel. Die Druckgröße legt LaTeX fest.
         var target = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         target.Render(visual);
+        // Graustufen-PNG: die Seite zählt beim Druckdienstleister dann nicht als Farbseite.
+        BitmapSource output = _grayscale ? new FormatConvertedBitmap(target, PixelFormats.Gray8, null, 0) : target;
         var encoder = new PngBitmapEncoder();
-        encoder.Frames.Add(BitmapFrame.Create(target));
+        encoder.Frames.Add(BitmapFrame.Create(output));
         using var stream = File.Create(targetFilePath);
         encoder.Save(stream);
     }

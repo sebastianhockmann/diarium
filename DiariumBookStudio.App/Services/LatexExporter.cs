@@ -57,15 +57,22 @@ public static class LatexExporter
         }
 
         CopyStyle(project, outputDir);
-        var maps = new MapService(Path.Combine(project.ProjectRoot, "cache", "tiles"), Log);
+        var maps = new MapService(Path.Combine(project.ProjectRoot, "cache", "tiles"), Log, project.GrayAccents);
 
-        var entries = project.Entries.OrderBy(e => e.Date ?? DateTime.MaxValue).ThenBy(e => e.Key).ToList();
+        var entries = project.BookEntries.OrderBy(e => e.Date ?? DateTime.MaxValue).ThenBy(e => e.Key).ToList();
+        if (entries.Count == 0)
+            throw new InvalidOperationException(project.Year is { } year
+                ? $"Für das Jahr {year} gibt es keine Einträge."
+                : "Das Projekt enthält keine Einträge.");
 
         var tex = new StringBuilder();
         tex.AppendLine("% Automatisch erzeugt mit DiariumBookStudio – Layout siehe diarybook.sty");
         tex.AppendLine("% Kompilieren: lualatex book.tex (zweimal, wegen Inhaltsverzeichnis)");
         tex.AppendLine("\\documentclass[11pt,twoside,openany]{scrbook}");
-        tex.AppendLine(project.PrintVersion ? "\\usepackage[print]{diarybook}" : "\\usepackage{diarybook}");
+        var options = new List<string>();
+        if (project.PrintVersion) options.Add("print");
+        if (project.GrayAccents) options.Add("gray");
+        tex.AppendLine(options.Count == 0 ? "\\usepackage{diarybook}" : $"\\usepackage[{string.Join(",", options)}]{{diarybook}}");
         tex.AppendLine($"\\hypersetup{{pdftitle={{{LatexText.Escape(project.BookTitle)}}}}}");
         tex.AppendLine("\\begin{document}");
         tex.AppendLine("\\frontmatter");

@@ -19,7 +19,28 @@ public class BookProject
     /// <summary>Druckversion: 3 mm Beschnittzugabe, TrimBox/BleedBox, Seitenzahl auf Vielfaches von 4.</summary>
     public bool PrintVersion { get; set; }
 
+    /// <summary>
+    /// Akzente (Datum, Symbole, Linien) und Karten in Graustufen. Reine Textseiten gelten
+    /// dann bei Druckdienstleistern wie epubli als Schwarz-Weiß-Seiten und sind günstiger.
+    /// </summary>
+    public bool GrayAccents { get; set; }
+
+    /// <summary>Nur Einträge dieses Jahres ins Buch übernehmen (null = alle).</summary>
+    public int? Year { get; set; }
+
     public ObservableCollection<EntryModel> Entries { get; set; } = new();
+
+    /// <summary>Die Einträge, die ins Buch kommen (berücksichtigt das gewählte Jahr).</summary>
+    [JsonIgnore]
+    public IEnumerable<EntryModel> BookEntries => Entries.Where(e => Year is null || e.Date?.Year == Year);
+
+    [JsonIgnore]
+    public IReadOnlyList<int> AvailableYears => Entries
+        .Where(e => e.Date.HasValue)
+        .Select(e => e.Date!.Value.Year)
+        .Distinct()
+        .OrderBy(y => y)
+        .ToList();
 
     [JsonIgnore]
     public string ProjectFile => Path.Combine(ProjectRoot, "diarium-book-project.json");

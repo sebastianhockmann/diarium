@@ -22,7 +22,21 @@ public static class DiariumImporter
     {
         if (!File.Exists(zipPath))
             throw new FileNotFoundException("ZIP-Datei nicht gefunden.", zipPath);
+        return Import(zipPath, projectRoot, sourceFolder => ZipFile.ExtractToDirectory(zipPath, sourceFolder));
+    }
 
+    /// <summary>Importiert einen bereits entpackten Diarium-Export (Ordner mit HTML-Datei und media-Ordner).</summary>
+    public static BookProject ImportFolder(string exportFolder, string projectRoot)
+    {
+        if (!Directory.Exists(exportFolder))
+            throw new DirectoryNotFoundException($"Ordner nicht gefunden: {exportFolder}");
+        if (Path.GetFullPath(projectRoot).StartsWith(Path.GetFullPath(exportFolder), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Der Projektordner darf nicht innerhalb des Exportordners liegen.");
+        return Import(exportFolder, projectRoot, sourceFolder => CopyDirectory(exportFolder, sourceFolder));
+    }
+
+    private static BookProject Import(string sourcePath, string projectRoot, Action<string> fillSourceFolder)
+    {
         Directory.CreateDirectory(projectRoot);
         var projectFile = Path.Combine(projectRoot, "diarium-book-project.json");
         var existing = File.Exists(projectFile) ? BookProject.Load(projectFile) : null;
@@ -31,23 +45,35 @@ public static class DiariumImporter
         if (Directory.Exists(sourceFolder))
             Directory.Delete(sourceFolder, true);
         Directory.CreateDirectory(sourceFolder);
+        fillSourceFolder(sourceFolder);
 
-        ZipFile.ExtractToDirectory(zipPath, sourceFolder);
-        var htmlFile = Directory.GetFiles(sourceFolder, "*.html", SearchOption.AllDirectories).FirstOrDefault()
-            ?? throw new InvalidOperationException("In der ZIP-Datei wurde keine HTML-Datei gefunden.");
+        // Ein Export kann aus mehreren HTML-Dateien bestehen; alle einlesen, nach Namen sortiert.
+        var htmlFiles = Directory.GetFiles(sourceFolder, "*.html", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (htmlFiles.Count == 0)
+            throw new InvalidOperationException("Im Export wurde keine HTML-Datei gefunden.");
 
-        var html = File.ReadAllText(htmlFile);
-        var entries = ParseEntries(html);
+        // Bildpfade werden relativ zum Ordner der ersten HTML-Datei gespeichert (siehe BookProject.ResolvePaths).
+        var baseFolder = Path.GetDirectoryName(htmlFiles[0])!;
+        var entries = new ObservableCollection<EntryModel>();
+        foreach (var htmlFile in htmlFiles)
+        {
+            foreach (var entry in ParseEntries(File.ReadAllText(htmlFile), Path.GetDirectoryName(htmlFile)!, baseFolder))
+                entries.Add(entry);
+        }
         BookProject.AssignKeys(entries);
 
         var project = new BookProject
         {
             ProjectRoot = projectRoot,
-            SourceZipPath = zipPath,
-            HtmlFile = htmlFile,
+            SourceZipPath = sourcePath,
+            HtmlFile = htmlFiles[0],
             BookTitle = existing?.BookTitle ?? BuildDefaultTitle(entries),
             BookSubtitle = existing?.BookSubtitle ?? string.Empty,
             PrintVersion = existing?.PrintVersion ?? false,
+            GrayAccents = existing?.GrayAccents ?? false,
+            Year = existing?.Year,
             Entries = entries
         };
         project.ResolvePaths();
@@ -108,14 +134,24 @@ public static class DiariumImporter
         var last = dates.Last();
         if (first.Year == last.Year && first.Month == last.Month)
             return $"Tagebuch {first.ToString("MMMM yyyy", de)}";
+        if (first.Year == last.Year && first.Month == 1 && last.Month == 12)
+            return $"Tagebuch {first.Year}";
         if (first.Year == last.Year)
             return $"Tagebuch {first.ToString("MMMM", de)} – {last.ToString("MMMM yyyy", de)}";
         return $"Tagebuch {first.ToString("MMMM yyyy", de)} – {last.ToString("MMMM yyyy", de)}";
     }
 
-    private static ObservableCollection<EntryModel> ParseEntries(string html)
+    private static void CopyDirectory(string source, string target)
     {
-        var result = new ObservableCollection<EntryModel>();
+        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(Path.Combine(target, Path.GetRelativePath(source, dir)));
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+            File.Copy(file, Path.Combine(target, Path.GetRelativePath(source, file)), true);
+    }
+
+    private static List<EntryModel> ParseEntries(string html, string htmlFolder, string baseFolder)
+    {
+        var result = new List<EntryModel>();
         var marker = "<div class=\"entry\">";
         var parts = html.Split(marker, StringSplitOptions.None).Skip(1).ToList();
 
@@ -138,9 +174,11 @@ public static class DiariumImporter
             foreach (Match match in imageMatches)
             {
                 order++;
+                var src = WebUtility.HtmlDecode(match.Groups["src"].Value).Replace('/', Path.DirectorySeparatorChar);
+                var relative = Path.GetRelativePath(baseFolder, Path.GetFullPath(Path.Combine(htmlFolder, src)));
                 entry.Images.Add(new ImageItem
                 {
-                    RelativePath = WebUtility.HtmlDecode(match.Groups["src"].Value),
+                    RelativePath = relative.Replace(Path.DirectorySeparatorChar, '/'),
                     Order = order,
                     Selected = order <= 6
                 });

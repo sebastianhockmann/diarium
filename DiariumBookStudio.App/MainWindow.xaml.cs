@@ -18,7 +18,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v21";
+    public string AppVersion { get; } = "DiariumBookStudio v22";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
@@ -41,15 +41,54 @@ public partial class MainWindow : Window
         };
         if (openDialog.ShowDialog() != true) return;
 
+        RunImport(Path.GetFileNameWithoutExtension(openDialog.FileName),
+            root => DiariumImporter.ImportZip(openDialog.FileName, root));
+    }
+
+    private void ImportFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var folderDialog = new OpenFolderDialog
+        {
+            Title = "Entpackten Diarium-Export auswählen (Ordner mit HTML-Datei und media-Ordner)"
+        };
+        if (folderDialog.ShowDialog(this) != true) return;
+
+        RunImport(new DirectoryInfo(folderDialog.FolderName).Name,
+            root => DiariumImporter.ImportFolder(folderDialog.FolderName, root));
+    }
+
+    /// <summary>
+    /// Ist ein Projekt geöffnet, kann der neue Export in dieses Projekt übernommen werden.
+    /// So bleiben Bearbeitungen erhalten, auch wenn der Exportname sich ändert
+    /// (z. B. „Diarium_2026-01-01_2026-06-30“ → „Diarium_2026-01-01_2026-12-31“).
+    /// </summary>
+    private void RunImport(string exportName, Func<string, BookProject> import)
+    {
         var projectRoot = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "DiariumBookStudio",
-            Path.GetFileNameWithoutExtension(openDialog.FileName));
+            exportName);
 
-        if (File.Exists(Path.Combine(projectRoot, "diarium-book-project.json")))
+        if (_project is not null)
         {
             var answer = MessageBox.Show(this,
-                $"Für diese ZIP gibt es bereits ein Projekt:\n{projectRoot}\n\n" +
+                $"Export in das geöffnete Projekt übernehmen?\n{_project.ProjectRoot}\n\n" +
+                "Ja: Einträge werden aktualisiert, Bearbeitungen (Texte, Prüfstatus, Bildauswahl, " +
+                "Bildunterschriften, Ortsnamen) bleiben erhalten.\n" +
+                $"Nein: Neues Projekt unter\n{projectRoot}",
+                "Import", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            if (answer == MessageBoxResult.Cancel) return;
+            if (answer == MessageBoxResult.Yes)
+            {
+                _project.Save();
+                projectRoot = _project.ProjectRoot;
+            }
+        }
+
+        if (projectRoot != _project?.ProjectRoot && File.Exists(Path.Combine(projectRoot, "diarium-book-project.json")))
+        {
+            var answer = MessageBox.Show(this,
+                $"Für diesen Export gibt es bereits ein Projekt:\n{projectRoot}\n\n" +
                 "Die Einträge werden neu eingelesen. Bearbeitete Texte, Prüfstatus, Bildauswahl, " +
                 "Bildunterschriften und Ortsnamen werden übernommen.\n\nFortfahren?",
                 "Erneut importieren", MessageBoxButton.OKCancel, MessageBoxImage.Question);
@@ -58,7 +97,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = DiariumImporter.ImportZip(openDialog.FileName, projectRoot);
+            _project = import(projectRoot);
             ShowProjectSettings();
             RefreshEntryTree();
             StatusText.Text = $"Import fertig: {_project.Entries.Count} Einträge. Projekt: {_project.ProjectFile}";
@@ -259,7 +298,7 @@ public partial class MainWindow : Window
         if (_project is null) return;
 
         var query = SearchBox.Text?.Trim() ?? string.Empty;
-        var entries = _project.Entries
+        var entries = _project.BookEntries
             .Where(entry => string.IsNullOrWhiteSpace(query)
                 || entry.DisplayTitle.Contains(query, StringComparison.OrdinalIgnoreCase)
                 || entry.EditedText.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -354,6 +393,13 @@ public partial class MainWindow : Window
             BookTitleBox.Text = _project?.BookTitle ?? string.Empty;
             BookSubtitleBox.Text = _project?.BookSubtitle ?? string.Empty;
             PrintVersionCheckBox.IsChecked = _project?.PrintVersion == true;
+            GrayAccentsCheckBox.IsChecked = _project?.GrayAccents == true;
+
+            // Erster Eintrag „Alle Jahre“ (null), danach die vorhandenen Jahre.
+            var years = new List<object> { AllYears };
+            years.AddRange((_project?.AvailableYears ?? Array.Empty<int>()).Cast<object>());
+            YearComboBox.ItemsSource = years;
+            YearComboBox.SelectedItem = _project?.Year is { } year && years.Contains(year) ? year : AllYears;
         }
         finally
         {
@@ -361,12 +407,25 @@ public partial class MainWindow : Window
         }
     }
 
+    private const string AllYears = "Alle";
+
     private void BookSettings_Changed(object sender, RoutedEventArgs e)
     {
         if (_updatingUi || _project is null) return;
         _project.BookTitle = BookTitleBox.Text;
         _project.BookSubtitle = BookSubtitleBox.Text;
         _project.PrintVersion = PrintVersionCheckBox.IsChecked == true;
+        _project.GrayAccents = GrayAccentsCheckBox.IsChecked == true;
+    }
+
+    private void YearComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingUi || _project is null) return;
+        _project.Year = YearComboBox.SelectedItem as int?;
+        RefreshEntryTree();
+        StatusText.Text = _project.Year is { } year
+            ? $"Buch enthält nur Einträge aus {year} ({_project.BookEntries.Count()} Einträge)."
+            : $"Buch enthält alle Einträge ({_project.Entries.Count}).";
     }
 
     /// <summary>Pro Eintrag gibt es höchstens ein Titelbild.</summary>

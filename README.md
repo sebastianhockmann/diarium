@@ -207,3 +207,24 @@ Druck:
 
 - Option „Druckversion“: 3 mm Beschnittzugabe, TrimBox/BleedBox im PDF,
   Seitenzahl wird auf ein Vielfaches von 4 aufgefüllt.
+
+
+## Version 22 (2026-10-02)
+
+Jahresbuch:
+
+- Jahresauswahl in der Kopfleiste: Baum und Buch enthalten nur die Einträge des gewählten Jahres.
+  Bei einem Export vom 1.1. bis 31.12. wird „Tagebuch <Jahr>“ als Titel vorgeschlagen.
+- Import in das geöffnete Projekt: Ein neuer Export (z. B. später im Jahr mit längerem Zeitraum)
+  aktualisiert das bestehende Projekt, Bearbeitungen bleiben erhalten – unabhängig vom Dateinamen.
+- Exporte mit mehreren HTML-Dateien werden vollständig eingelesen.
+
+Import:
+
+- „Entpackten Diarium-Ordner importieren“ (Menü und Symbolleiste) zusätzlich zur ZIP.
+
+Druckkosten:
+
+- Option „Akzente in Graustufen“: Datum, Symbole, Linien und Karten in Grau. Seiten ohne Fotos
+  enthalten dann keine Farbe und werden z. B. bei epubli als Schwarz-Weiß-Seiten berechnet.
+  Text und Linien sind jetzt immer als echte Graustufen (DeviceGray) definiert.

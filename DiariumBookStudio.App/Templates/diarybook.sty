@@ -9,10 +9,14 @@
 %  verwendet dann diese Version statt der mitgelieferten.
 % =====================================================================
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{diarybook}[2026/10/02 DiariumBookStudio Layout v21]
+\ProvidesPackage{diarybook}[2026/10/02 DiariumBookStudio Layout v22]
+%  Optionen:  print – 3 mm Beschnitt, TrimBox/BleedBox, Seitenzahl durch 4 teilbar
+%             gray  – Akzente in Graustufen (günstigerer Schwarz-Weiß-Druck für Textseiten)
 
 \newif\ifdiary@print
+\newif\ifdiary@gray
 \DeclareOption{print}{\diary@printtrue}
+\DeclareOption{gray}{\diary@graytrue}
 \ProcessOptions\relax
 
 % ---------------------------------------------------------------------
@@ -33,11 +37,17 @@
 % ---------------------------------------------------------------------
 %  Farben
 % ---------------------------------------------------------------------
+% Graustufen werden im Farbmodell „gray“ definiert (DeviceGray im PDF). So zählen Seiten
+% ohne Fotos bei Druckdienstleistern als Schwarz-Weiß-Seiten.
 \RequirePackage{xcolor}
-\definecolor{DiaryInk}{HTML}{222222}
-\definecolor{DiaryAccent}{HTML}{2E6A70}
-\definecolor{DiaryMuted}{HTML}{6B6B6B}
-\definecolor{DiaryRule}{HTML}{BFBFBF}
+\definecolor{DiaryInk}{gray}{0.13}
+\definecolor{DiaryMuted}{gray}{0.42}
+\definecolor{DiaryRule}{gray}{0.75}
+\ifdiary@gray
+  \definecolor{DiaryAccent}{gray}{0.25}
+\else
+  \definecolor{DiaryAccent}{HTML}{2E6A70}
+\fi
 
 % ---------------------------------------------------------------------
 %  Schrift: EB Garamond, sonst Libertinus, sonst Latin Modern.
