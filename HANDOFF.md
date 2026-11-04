@@ -1,6 +1,18 @@
 # Handoff – DiariumBookStudio
 
-Stand: 2026-11-04 · Version v28
+Stand: 2026-11-04 · Version v29
+
+**Erledigt in v29:** 200-ppi-Grenze im Layout (`GalleryLayout.Render(…, maxWidth)`, `\DiaryHeroWidth`),
+Profil `lulu-cq-pb-premium` (Crown Quarto, `0744X0968FCPREPB080CW444MXX`, nicht über die API verifiziert),
+Umbruchfehler „Kopf bzw. Trennzeichen allein am Seitenende“ behoben (`\DiaryKeepWithHead`, Markierungen
+in der Kopfzeile). Getestet am echten Projekt:
+- Fotos: 599 ausgewählt, 404 × 1600 px (quer), 193 × 1200 px (hoch), 1 kleiner (900 px). Die Grenze greift
+  praktisch nie – Hochformate stehen ohnehin nie über die volle Breite.
+- Februar: A4 24, Crown Quarto 28, A5 30 Seiten (je mit Monatsseite) für 23 Einträge.
+- Ganzes Buch Jan–Okt als A4-Druckversion: 224 Seiten, alle 233 Seitenmarken, Seite 216,35 × 303,35 mm,
+  TrimBox korrekt, keine Auflösungshinweise; 97 s.
+- Offener Schönheitsfehler: Rutscht ein Eintrag samt Trennzeichen auf die nächste Seite, steht das
+  Trennzeichen oben auf der neuen Seite (eigentlich soll es nach einem Umbruch entfallen).
 
 **Erledigt in v28 (Wünsche des Nutzers):** A4-Format, Einstellungen, Hilfe, Vorschau.
 - A4: Profil `lulu-a4-pb-premium` (`0827X1169FCPREPB080CW444MXX`, nicht über die API verifiziert), jetzt Voreinstellung.

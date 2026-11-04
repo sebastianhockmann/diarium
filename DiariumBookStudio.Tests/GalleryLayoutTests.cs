@@ -47,6 +47,39 @@ public class GalleryLayoutTests
     }
 
     [Fact]
+    public void Aufloesungsgrenze_VerkleinertDieGanzeReihe()
+    {
+        // Ein Foto darf höchstens 0,3 \linewidth breit werden: beide Fotos der Reihe werden gleich hoch kleiner.
+        var widths = new List<double>();
+        GalleryLayout.Render(Photos(1.5, 1.5), (_, fraction) => { widths.Add(fraction); return "x"; },
+            maxWidth: p => p.File == "f0" ? 0.3 : 1.0);
+        Assert.Equal(0.3, widths[0], 3);
+        Assert.Equal(0.3, widths[1], 3);
+    }
+
+    [Fact]
+    public void Aufloesungsgrenze_EinzelnesFotoWirdKleinerGesetzt()
+    {
+        double width = 0;
+        GalleryLayout.Render(Photos(1.5), (_, fraction) => { width = fraction; return "x"; }, maxWidth: _ => 0.8);
+        Assert.Equal(0.8, width, 3);
+    }
+
+    [Fact]
+    public void Aufloesungsgrenze_GrossesBildFaelltAufReihenZurueck()
+    {
+        // Drei Fotos: ohne Grenze großes Bild + zwei kleine (Breite links > 0,5).
+        var free = new List<double>();
+        GalleryLayout.Render(Photos(1.33, 1.33, 1.33), (_, f) => { free.Add(f); return "x"; });
+        Assert.True(free[0] > 0.5);
+
+        var limited = new List<double>();
+        var tex = GalleryLayout.Render(Photos(1.33, 1.33, 1.33), (_, f) => { limited.Add(f); return "x"; }, maxWidth: _ => 0.5);
+        Assert.DoesNotContain("minipage", tex);
+        Assert.All(limited, f => Assert.True(f <= 0.5 + 1e-9));
+    }
+
+    [Fact]
     public void RueckrufBestimmtDenDateinamen()
     {
         var tex = GalleryLayout.Render(Photos(1.5, 1.5), (p, _) => $"images/{p.File}_klein.jpg");

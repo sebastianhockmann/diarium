@@ -149,6 +149,30 @@ public static class PrintProfiles
         ProductOptions: new[] { "Buchformat: A4 (8.27 × 11.69 in / 210 × 297 mm)" }.Concat(LuluPaperbackOptions).ToList());
 
     /// <summary>
+    /// Lulu „Crown Quarto“ 189 × 246 mm (7.44 × 9.68 in) – zwischen A5 und A4. Bei 1600 px breiten
+    /// Fotos (Diarium-Export) erreicht ein Foto über die volle Satzbreite noch ca. 280 ppi.
+    /// Format laut Lulu Book Creation Guide; Verfügbarkeit als Taschenbuch in Premium-Farbe nicht über die API geprüft.
+    /// </summary>
+    public static PrintProfile LuluCrownQuartoPaperback { get; } = new(
+        Id: "lulu-cq-pb-premium",
+        Name: "Lulu · Crown Quarto 189 × 246 mm · Premium-Farbe",
+        Provider: "Lulu",
+        PodPackageId: "0744X0968FCPREPB080CW444MXX",
+        TrimWidth: 189,
+        TrimHeight: 246,
+        Bleed: 0.125 * Inch,
+        SafetyMargin: 0.5 * Inch,
+        // Kopfzeile 17 mm, Seitenzahl 14 mm vom Endformat; 12 pt für gut lesbare Zeilen bei ca. 145 mm Satzbreite.
+        Layout: new PageLayout(MinInner: 22, Outer: 18, Top: 25, Bottom: 25, HeadSep: 8, FootSkip: 11, FontSize: 12),
+        MinPages: 32,
+        MaxPages: 800,
+        MinPagesForSpineText: 81,
+        SpineWidth: LuluPaperbackSpine,
+        InnerMargin: LuluGutter,
+        OrderUrl: "https://www.lulu.com/create/print-books",
+        ProductOptions: new[] { "Buchformat: Crown Quarto (7.44 × 9.68 in / 189 × 246 mm)" }.Concat(LuluPaperbackOptions).ToList());
+
+    /// <summary>
     /// Lulu A5-Taschenbuch (Klebebindung), Premium-Farbe auf 80# gestrichenem Papier, matter Umschlag.
     /// Vorgaben aus dem „Lulu Book Creation Guide“: Beschnitt 0,125 in, Sicherheitsabstand 0,5 in,
     /// 32–800 Seiten, Rücken = Seiten / 444 + 0,06 in, Bundsteg nach Seitenzahl.
@@ -172,7 +196,7 @@ public static class PrintProfiles
         OrderUrl: "https://www.lulu.com/create/print-books",
         ProductOptions: new[] { "Buchformat: A5 (5.83 × 8.27 in / 148 × 210 mm)" }.Concat(LuluPaperbackOptions).ToList());
 
-    public static IReadOnlyList<PrintProfile> All { get; } = new[] { LuluA4Paperback, LuluA5Paperback };
+    public static IReadOnlyList<PrintProfile> All { get; } = new[] { LuluA4Paperback, LuluCrownQuartoPaperback, LuluA5Paperback };
 
     /// <summary>Voreinstellung für neue Projekte (änderbar in den Einstellungen).</summary>
     public static PrintProfile Default => LuluA4Paperback;

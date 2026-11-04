@@ -9,7 +9,7 @@
 %  verwendet dann diese Version statt der mitgelieferten.
 % =====================================================================
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{diarybook}[2026/11/04 DiariumBookStudio Layout v28]
+\ProvidesPackage{diarybook}[2026/11/04 DiariumBookStudio Layout v29]
 %  Optionen:  print – Beschnitt (\DiaryBleed), TrimBox/BleedBox, Seitenzahl durch 4 teilbar
 %             gray  – Akzente in Graustufen (günstigerer Schwarz-Weiß-Druck für Textseiten)
 
@@ -232,11 +232,10 @@
     \fi
   \fi
   \diary@next
-  \diary@pagemark
   \global\diary@separatortrue
-  \phantomsection
-  \addcontentsline{toc}{section}{#5}%
-  \noindent
+  % Seitenmarke, Anker und Inhaltsverzeichnis erst in der Kopfzeile (horizontaler Modus): als eigene
+  % Elemente zwischen Trennzeichen und Kopf wären sie Umbruchstellen – das Trennzeichen bliebe allein zurück.
+  \noindent\diary@pagemark\phantomsection\addcontentsline{toc}{section}{#5}%
   \if\relax\detokenize{#4}\relax
     \begin{minipage}[t]{\linewidth}\diary@headtext{#1}{#2}{#3}\end{minipage}%
   \else
@@ -244,7 +243,8 @@
     \hfill
     \begin{minipage}[t]{0.37\linewidth}\vspace{0pt}\DiaryMap{#4}\end{minipage}%
   \fi
-  \par\vspace{1.4\baselineskip}%
+  % Nie direkt nach dem Kopf umbrechen (sonst stünde er allein unten auf der Seite).
+  \par\nopagebreak\vspace{1.4\baselineskip}%
   \@afterindentfalse\@afterheading
 }
 \newcommand\diary@headtext[3]{%
@@ -264,11 +264,9 @@
   \let\diary@next\relax
   \ifdim\pagegoal=\maxdimen\else\ifdiary@separator\let\diary@next\DiarySeparator\fi\fi
   \diary@next
-  \diary@pagemark
   \global\diary@separatortrue
-  \phantomsection
-  \addcontentsline{toc}{section}{#4}%
-  \noindent{\DiaryDateFont\MakeLowercase{#1}}\quad{\itshape #2}%
+  \noindent\diary@pagemark\phantomsection\addcontentsline{toc}{section}{#4}%
+  {\DiaryDateFont\MakeLowercase{#1}}\quad{\itshape #2}%
   \if\relax\detokenize{#3}\relax\else\par\nopagebreak\noindent{\DiaryMetaFont #3}\fi
   \par\vspace{1.6\baselineskip}%
 }
@@ -297,10 +295,15 @@
 %  Fotos
 % ---------------------------------------------------------------------
 % Titelbild über dem Text.  #1 Datei  #2 Bildunterschrift
+% \DiaryHeroWidth{0.8} davor begrenzt die Breite (Anteil der Satzbreite), wenn die Auflösung
+% des Fotos für die volle Breite nicht reicht; gilt nur für das nächste Titelbild.
+\def\diary@herowidth{1}
+\newcommand\DiaryHeroWidth[1]{\gdef\diary@herowidth{#1}}
 \newcommand\DiaryHero[2]{%
   \par\noindent
   \begin{minipage}{\linewidth}\centering
-    \includegraphics[width=\linewidth,height=0.42\textheight,keepaspectratio]{#1}%
+    \includegraphics[width=\diary@herowidth\linewidth,height=0.42\textheight,keepaspectratio]{#1}%
+    \gdef\diary@herowidth{1}%
     \if\relax\detokenize{#2}\relax\else\par\vspace{0.5ex}{\DiaryCaptionFont #2\par}\fi
   \end{minipage}%
   \par\vspace{1.2\baselineskip}%
@@ -316,6 +319,8 @@
 
 % Galerie-Rahmen: Abstand zum Text und zwischen den Zeilen
 \newenvironment{DiaryGallery}{\par\vspace{0.9\baselineskip}}{\par}
+% Vor einer Galerie direkt nach dem Kopf (Eintrag ohne Text): Kopf und erste Fotoreihe zusammenhalten.
+\newcommand\DiaryKeepWithHead{\par\nopagebreak}
 \newcommand\DiaryGalleryRow{\par\nointerlineskip\noindent}
 
 % Abschluss eines Eintrags

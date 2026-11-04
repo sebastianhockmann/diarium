@@ -93,6 +93,8 @@ public static class LatexExporter
         tex.AppendLine($"\\hypersetup{{pdftitle={{{LatexText.Escape(project.BookTitle)}}}}}");
         // Seitenmarke je Eintrag (für Vorschau und Statistik); eigene Layoutdateien ohne diesen Befehl funktionieren weiter.
         tex.AppendLine("\\providecommand\\DiaryEntryKey[1]{}");
+        tex.AppendLine("\\providecommand\\DiaryHeroWidth[1]{}");
+        tex.AppendLine("\\providecommand\\DiaryKeepWithHead{\\par\\nopagebreak}");
         tex.AppendLine("\\begin{document}");
         if (preview is null)
         {
@@ -173,12 +175,16 @@ public static class LatexExporter
 
         if (hero is not null && ImageExport.Read(hero, entry, log, report) is { } heroImage)
         {
-            // DiaryHero: volle Satzbreite, höchstens 0,42 \textheight hoch.
-            var widthMm = Math.Min(geometry.TextWidth, 0.42 * geometry.TextHeight * heroImage.Aspect);
+            // DiaryHero: volle Satzbreite, höchstens 0,42 \textheight hoch – und nie breiter, als die Auflösung trägt.
+            var widthMm = Math.Min(Math.Min(geometry.TextWidth, 0.42 * geometry.TextHeight * heroImage.Aspect),
+                MaxPrintWidthMm(heroImage.PixelWidth));
+            if (widthMm < geometry.TextWidth - 0.1)
+                tex.AppendLine(FormattableString.Invariant($"\\DiaryHeroWidth{{{widthMm / geometry.TextWidth:0.0000}}}"));
             tex.AppendLine($"\\DiaryHero{{{Place(heroImage, widthMm)}}}{{{LatexText.Inline(hero.Caption ?? string.Empty)}}}");
         }
 
-        tex.AppendLine(LatexText.Body(entry.EditedText, withInitial: true));
+        var body = LatexText.Body(entry.EditedText, withInitial: true);
+        tex.AppendLine(body);
 
         var sources = new Dictionary<string, SourceImage>();
         var gallery = new List<GalleryPhoto>();
@@ -189,11 +195,18 @@ public static class LatexExporter
             if (!sources.TryAdd(id, source)) continue; // dasselbe Foto doppelt ausgewählt
             gallery.Add(new GalleryPhoto(id, source.Aspect, LatexText.Inline(image.Caption ?? string.Empty), source.PixelWidth, image.FileName));
         }
+        if (gallery.Count > 0 && body.Length == 0 && hero is null)
+            tex.AppendLine("\\DiaryKeepWithHead");
         if (gallery.Count > 0)
-            tex.Append(GalleryLayout.Render(gallery, (photo, fraction) => Place(sources[photo.File], fraction * geometry.TextWidth)));
+            tex.Append(GalleryLayout.Render(gallery,
+                (photo, fraction) => Place(sources[photo.File], fraction * geometry.TextWidth),
+                photo => MaxPrintWidthMm(photo.PixelWidth) / geometry.TextWidth));
 
         tex.AppendLine("\\DiaryEntryEnd");
     }
+    /// <summary>Breiteste Druckgröße in mm, bei der ein Foto noch die Mindestauflösung (200 ppi) hat.</summary>
+    private static double MaxPrintWidthMm(double pixelWidth) => pixelWidth / PreflightReport.MinDpi * 25.4;
+
     public static bool IsEmpty(EntryModel entry)
         => string.IsNullOrWhiteSpace(entry.EditedText?.Replace(' ', ' ')) && !entry.Images.Any(i => i.Selected);
 

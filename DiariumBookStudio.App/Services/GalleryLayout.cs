@@ -17,6 +17,8 @@ public sealed record GalleryPhoto(string File, double Aspect, string Caption, do
 /// Berechnet ein Fotolayout ohne Beschnitt: Bilder werden in Zeilen gruppiert,
 /// jede Zeile wird so skaliert, dass sie exakt die Textbreite füllt („Blocksatz-Reihen“).
 /// Drei Bilder werden – wenn es passt – als großes Bild mit zwei kleinen daneben gesetzt.
+/// Ein Foto wird nie breiter gesetzt, als seine Auflösung trägt (siehe maxWidth in Render) –
+/// die Reihe wird dann kleiner und mittig gesetzt.
 /// Alle Maße sind Anteile von \linewidth.
 /// </summary>
 public static class GalleryLayout
@@ -30,20 +32,24 @@ public static class GalleryLayout
 
     /// <param name="place">Wird für jedes Foto mit seiner Breite (Anteil von \linewidth) aufgerufen und
     /// liefert den Pfad der passend zur Druckgröße geschriebenen Datei.</param>
-    public static string Render(IReadOnlyList<GalleryPhoto> photos, Func<GalleryPhoto, double, string> place)
+    /// <param name="maxWidth">Höchste Breite eines Fotos als Anteil von \linewidth (z. B. aus Pixelzahl und
+    /// Mindestauflösung); null = unbegrenzt.</param>
+    public static string Render(IReadOnlyList<GalleryPhoto> photos, Func<GalleryPhoto, double, string> place,
+        Func<GalleryPhoto, double>? maxWidth = null)
     {
         if (photos.Count == 0) return string.Empty;
+        maxWidth ??= _ => double.MaxValue;
 
         var sb = new StringBuilder();
         sb.AppendLine("\\begin{DiaryGallery}");
-        if (!(photos.Count == 3 && TryRenderFeature(photos, sb, place)))
+        if (!(photos.Count == 3 && TryRenderFeature(photos, sb, place, maxWidth)))
         {
             var rows = PartitionRows(photos);
             for (var r = 0; r < rows.Count; r++)
             {
                 if (r > 0) sb.AppendLine($"\\par\\vspace{{{F(Gap)}\\linewidth}}");
                 var maxHeight = rows.Count == 1 ? SingleMaxHeight : LastRowMaxHeight;
-                RenderRow(rows[r], r == rows.Count - 1 ? maxHeight : double.MaxValue, sb, place);
+                RenderRow(rows[r], r == rows.Count - 1 ? maxHeight : double.MaxValue, sb, place, maxWidth);
             }
         }
         sb.AppendLine("\\end{DiaryGallery}");
@@ -53,16 +59,19 @@ public static class GalleryLayout
     private static double RowHeight(IReadOnlyList<GalleryPhoto> row)
         => (1.0 - Gap * (row.Count - 1)) / row.Sum(p => p.Aspect);
 
-    private static void RenderRow(IReadOnlyList<GalleryPhoto> row, double maxHeight, StringBuilder sb, Func<GalleryPhoto, double, string> place)
+    private static void RenderRow(IReadOnlyList<GalleryPhoto> row, double maxHeight, StringBuilder sb,
+        Func<GalleryPhoto, double, string> place, Func<GalleryPhoto, double> maxWidth)
     {
-        var height = Math.Min(RowHeight(row), maxHeight);
+        // Die Reihe so hoch wie möglich, aber kein Foto breiter als seine Auflösung erlaubt.
+        var height = Math.Min(RowHeight(row), Math.Min(maxHeight, row.Min(p => maxWidth(p) / p.Aspect)));
         var cells = row.Select(p => $"\\DiaryPhoto{{{F(p.Aspect * height - Safety)}}}{{{place(p, p.Aspect * height)}}}{{{p.Caption}}}").ToList();
         sb.AppendLine("\\DiaryGalleryRow");
         sb.AppendLine("\\makebox[\\linewidth][c]{" + string.Join($"\\hspace{{{F(Gap)}\\linewidth}}", cells) + "}");
     }
 
     /// <summary>Großes Bild links, zwei Bilder rechts übereinander – beide Seiten gleich hoch.</summary>
-    private static bool TryRenderFeature(IReadOnlyList<GalleryPhoto> photos, StringBuilder sb, Func<GalleryPhoto, double, string> place)
+    private static bool TryRenderFeature(IReadOnlyList<GalleryPhoto> photos, StringBuilder sb,
+        Func<GalleryPhoto, double, string> place, Func<GalleryPhoto, double> maxWidth)
     {
         if (photos.Any(p => !string.IsNullOrEmpty(p.Caption))) return false;
 
@@ -73,6 +82,8 @@ public static class GalleryLayout
         var w0 = 1.0 - Gap - w1;
         var height = w0 / a0;
         if (w1 < 0.28 || w1 > 0.5 || height > SingleMaxHeight) return false;
+        // Zu geringe Auflösung für das große Bild: lieber normale Reihen, die sich verkleinern lassen.
+        if (w0 > maxWidth(photos[0]) || w1 > maxWidth(photos[1]) || w1 > maxWidth(photos[2])) return false;
         var file0 = place(photos[0], w0);
         var file1 = place(photos[1], w1);
         var file2 = place(photos[2], w1);

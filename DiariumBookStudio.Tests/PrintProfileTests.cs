@@ -82,6 +82,19 @@ public class PrintProfileTests
     }
 
     [Fact]
+    public void CrownQuarto_ZwischenA5UndA4()
+    {
+        var cq = PrintProfiles.LuluCrownQuartoPaperback;
+        var g = cq.InteriorGeometry(300);
+        Assert.Equal(189 - 25.4 - 18, g.TextWidth, 3);
+        Assert.True(g.Top - g.HeadSep >= cq.SafetyMargin + 3);
+        Assert.True(g.Bottom - g.FootSkip >= cq.SafetyMargin);
+        // 1600 px über die volle Satzbreite: ca. 280 ppi
+        Assert.InRange(1600 / (g.TextWidth / 25.4), 270, 290);
+        Assert.Contains(cq, PrintProfiles.All);
+    }
+
+    [Fact]
     public void Voreinstellung_IstA4()
         => Assert.Same(PrintProfiles.LuluA4Paperback, PrintProfiles.Default);
 

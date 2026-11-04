@@ -333,3 +333,16 @@ Weniger Handarbeit pro Jahr:
   Format und Fotos je Eintrag für neue Projekte, zuletzt geöffnetes Projekt beim Start öffnen.
 - **Hilfe** (F1 bzw. Hilfe → Anleitung): Ablauf, Bearbeitung, Tastenkürzel, Fotos, Vorschau, Formate,
   Einstellungen, Ordner, Layout anpassen, Fehlerbehebung.
+
+
+## Version 29 (2026-11-04)
+
+- **Mindestauflösung im Layout**: Kein Foto wird breiter gesetzt, als es für 200 ppi reicht. Fotoreihen
+  und Titelbilder werden dann kleiner und mittig gesetzt; das Layout „großes Bild plus zwei kleine“ weicht
+  auf Reihen aus. Bei den 1600-px-Fotos des Diarium-Exports greift das praktisch nie (Querformat über die
+  volle A4-Breite: 250 ppi) – es schützt vor kleinen Bildern wie Screenshots oder Messenger-Fotos.
+- **Neues Format „Lulu · Crown Quarto 189 × 246 mm“** zwischen A5 und A4: Fotos über die volle Breite
+  erreichen mit 1600 px noch ca. 280 ppi.
+- **Fehlerbehebung Seitenumbruch**: Ein Eintragskopf steht nicht mehr allein unten auf der Seite; bei
+  Einträgen ohne Text bleibt die erste Fotoreihe am Kopf. Seitenmarke, Anker und Inhaltsverzeichnis-Eintrag
+  sitzen jetzt in der Kopfzeile, sodass auch das Trennzeichen nicht mehr ohne Eintrag zurückbleibt.

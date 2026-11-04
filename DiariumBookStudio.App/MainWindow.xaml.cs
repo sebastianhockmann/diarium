@@ -22,7 +22,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v28";
+    public string AppVersion { get; } = "DiariumBookStudio v29";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
