@@ -24,12 +24,12 @@ public static class LatexExporter
     /// damit die Oberfläche während Kartendownloads nicht einfriert.
     /// </summary>
     public static Task<string> ExportAsync(BookProject project, string? outputTexPath = null, IProgress<string>? progress = null,
-        PreflightReport? report = null)
+        PreflightReport? report = null, PreviewOptions? preview = null)
     {
         var tcs = new TaskCompletionSource<string>();
         var thread = new Thread(() =>
         {
-            try { tcs.SetResult(Export(project, outputTexPath, progress, report)); }
+            try { tcs.SetResult(Export(project, outputTexPath, progress, report, preview)); }
             catch (Exception ex) { tcs.SetException(ex); }
         });
         thread.SetApartmentState(ApartmentState.STA);
@@ -39,8 +39,9 @@ public static class LatexExporter
     }
 
     /// <param name="report">Sammelt Probleme für die Vorabprüfung (fehlende Bilder, Auflösung, ungeprüfte Einträge).</param>
+    /// <param name="preview">Nur einen Ausschnitt setzen (ohne Titelseite, Inhaltsverzeichnis und Beschnitt).</param>
     public static string Export(BookProject project, string? outputTexPath = null, IProgress<string>? progress = null,
-        PreflightReport? report = null)
+        PreflightReport? report = null, PreviewOptions? preview = null)
     {
         var texPath = string.IsNullOrWhiteSpace(outputTexPath)
             ? Path.Combine(project.OutputFolder, "book.tex")
@@ -50,7 +51,7 @@ public static class LatexExporter
         var imageDir = Path.Combine(outputDir, "images");
         Directory.CreateDirectory(imageDir);
 
-        var logPath = Path.Combine(outputDir, "map_debug.txt");
+        var logPath = Path.Combine(outputDir, preview is null ? "map_debug.txt" : "preview_debug.txt");
         File.WriteAllText(logPath, $"DiariumBookStudio Export-Protokoll {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n", Encoding.UTF8);
         void Log(string message)
         {
@@ -63,6 +64,8 @@ public static class LatexExporter
         var maps = new MapService(Path.Combine(project.ProjectRoot, "cache", "tiles"), Log, project.GrayAccents);
 
         var entries = project.BookEntries.OrderBy(e => e.Date ?? DateTime.MaxValue).ThenBy(e => e.Key).ToList();
+        if (preview is not null)
+            entries = entries.Where(preview.Filter).ToList();
 
         // Einträge ganz ohne Inhalt (kein Titel, kein Text, keine Fotos) weglassen.
         // Nur mit Titel werden sie als Kurznotiz gesetzt (siehe AppendEntry).
@@ -81,17 +84,22 @@ public static class LatexExporter
         var tex = new StringBuilder();
         tex.AppendLine("% Automatisch erzeugt mit DiariumBookStudio – Layout siehe diarybook.sty");
         tex.AppendLine("% Kompilieren: lualatex book.tex (zweimal, wegen Inhaltsverzeichnis)");
-        tex.AppendLine("\\documentclass[11pt,twoside,openany]{scrbook}");
+        tex.AppendLine($"\\documentclass[fontsize={geometry.FontSize}pt,twoside,openany]{{scrbook}}");
         tex.AppendLine("\\input{bookgeometry}");
         var options = new List<string>();
-        if (project.PrintVersion) options.Add("print");
+        if (project.PrintVersion && preview is null) options.Add("print");
         if (project.GrayAccents) options.Add("gray");
         tex.AppendLine(options.Count == 0 ? "\\usepackage{diarybook}" : $"\\usepackage[{string.Join(",", options)}]{{diarybook}}");
         tex.AppendLine($"\\hypersetup{{pdftitle={{{LatexText.Escape(project.BookTitle)}}}}}");
+        // Seitenmarke je Eintrag (für Vorschau und Statistik); eigene Layoutdateien ohne diesen Befehl funktionieren weiter.
+        tex.AppendLine("\\providecommand\\DiaryEntryKey[1]{}");
         tex.AppendLine("\\begin{document}");
-        tex.AppendLine("\\frontmatter");
-        tex.AppendLine($"\\DiaryTitlePage{{{LatexText.Escape(project.BookTitle)}}}{{{LatexText.Escape(project.BookSubtitle)}}}{{{LatexText.Escape(BuildDateRange(entries))}}}");
-        tex.AppendLine("\\tableofcontents");
+        if (preview is null)
+        {
+            tex.AppendLine("\\frontmatter");
+            tex.AppendLine($"\\DiaryTitlePage{{{LatexText.Escape(project.BookTitle)}}}{{{LatexText.Escape(project.BookSubtitle)}}}{{{LatexText.Escape(BuildDateRange(entries))}}}");
+            tex.AppendLine("\\tableofcontents");
+        }
         tex.AppendLine("\\mainmatter");
 
         var done = 0;
@@ -109,7 +117,8 @@ public static class LatexExporter
             }
 
             tex.AppendLine();
-            tex.AppendLine($"\\DiaryMonth{{{monthName}}}{{{year}}}{{{LatexText.Escape(BuildMonthStats(monthEntries))}}}");
+            if (preview is null || preview.MonthPages)
+                tex.AppendLine($"\\DiaryMonth{{{monthName}}}{{{year}}}{{{LatexText.Escape(BuildMonthStats(monthEntries))}}}");
             tex.Append(monthTex);
         }
 
@@ -144,6 +153,7 @@ public static class LatexExporter
 
         tex.AppendLine();
         tex.AppendLine($"% ---- {entry.Key} ----");
+        tex.AppendLine($"\\DiaryEntryKey{{{entry.Key}}}");
         if (isShortEntry)
         {
             tex.AppendLine($"\\DiaryShortEntry{{{LatexText.Escape(longDate)}}}{{{LatexText.Escape(title)}}}{{{BuildMetaLine(entry)}}}{{{LatexText.Escape(toc)}}}");
@@ -228,13 +238,12 @@ public static class LatexExporter
     }
 
     /// <summary>
-    /// Satzspiegel des Buches: in der Druckversion aus dem Druckprofil (Bundsteg hängt von der
-    /// Seitenzahl ab – ohne bekannte Seitenzahl wird die des letzten Laufs bzw. eine Schätzung verwendet).
+    /// Satzspiegel des Buches aus dem Druckprofil – für Lese- und Druckversion gleich, damit Vorschau
+    /// und Druck dieselben Umbrüche haben. Der Bundsteg hängt von der Seitenzahl ab; ohne bekannte
+    /// Seitenzahl wird die des letzten Laufs bzw. eine Schätzung verwendet.
     /// </summary>
     public static BookGeometry GeometryFor(BookProject project, int? pageCount = null)
-        => project.PrintVersion
-            ? PrintProfiles.Find(project.PrintProfileId).InteriorGeometry(pageCount ?? project.LastPageCount ?? EstimatedPageCount)
-            : BookGeometry.Screen;
+        => PrintProfiles.Find(project.PrintProfileId).InteriorGeometry(pageCount ?? project.LastPageCount ?? EstimatedPageCount);
 
     /// <summary>Typischer Umfang eines Jahrbuchs; nur als Startwert, bis die echte Seitenzahl bekannt ist.</summary>
     private const int EstimatedPageCount = 300;
@@ -256,3 +265,8 @@ public static class LatexExporter
         File.Copy(source, Path.Combine(outputDir, fileName), true);
     }
 }
+
+/// <summary>Ausschnitt für die Vorschau.</summary>
+/// <param name="Filter">Welche Einträge gesetzt werden.</param>
+/// <param name="MonthPages">Monatsseiten mitsetzen (bei der Vorschau eines ganzen Monats).</param>
+public sealed record PreviewOptions(Func<EntryModel, bool> Filter, bool MonthPages);

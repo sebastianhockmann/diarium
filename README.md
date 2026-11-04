@@ -316,3 +316,20 @@ Weniger Handarbeit pro Jahr:
 - **Alle Einträge als geprüft markieren** (Menü „Buch“).
 - Testprojekt `DiariumBookStudio.Tests` (xUnit, `dotnet test`): Textumwandlung, Galerie-Layout,
   Druckprofil (Rückenbreite, Bundsteg, Umschlag, Seitenzahlgrenzen), Fotoauswahl, Vorabprüfung.
+
+
+## Version 28 (2026-11-04)
+
+- **A4-Format**: neues Profil „Lulu · A4 Taschenbuch · Premium-Farbe“ (Voreinstellung für neue Projekte),
+  12 pt Schrift und breitere Ränder; A5 bleibt wählbar. Umschlagschriften wachsen mit dem Format.
+  Lese- und Druckversion verwenden jetzt denselben Satzspiegel – Vorschau und Druck brechen gleich um.
+- **Vorschau** (👁 bzw. Buch → Vorschau): setzt den ausgewählten Eintrag oder seinen ganzen Monat und
+  zeigt die Seiten als Doppelseiten mit Zoom. Angezeigt wird, welche Einträge auf welcher Seite beginnen,
+  wie viele Einträge im Schnitt auf eine Seite passen; Doppelklick auf eine Seite öffnet den Eintrag.
+  Seitenmarken (`\DiaryEntryKey`) schreibt `diarybook.sty` ins LuaLaTeX-Protokoll; gerendert wird mit
+  `pdftoppm` aus MiKTeX.
+- **Einstellungen** (Datei → Einstellungen, gespeichert in `%APPDATA%\DiariumBookStudio\settings.json`):
+  Projektordner für neue Projekte, Ordner für Druckpakete, Pfad zu lualatex.exe (mit „Prüfen“),
+  Format und Fotos je Eintrag für neue Projekte, zuletzt geöffnetes Projekt beim Start öffnen.
+- **Hilfe** (F1 bzw. Hilfe → Anleitung): Ablauf, Bearbeitung, Tastenkürzel, Fotos, Vorschau, Formate,
+  Einstellungen, Ordner, Layout anpassen, Fehlerbehebung.

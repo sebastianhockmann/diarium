@@ -1,6 +1,21 @@
 # Handoff – DiariumBookStudio
 
-Stand: 2026-11-04 · Version v27
+Stand: 2026-11-04 · Version v28
+
+**Erledigt in v28 (Wünsche des Nutzers):** A4-Format, Einstellungen, Hilfe, Vorschau.
+- A4: Profil `lulu-a4-pb-premium` (`0827X1169FCPREPB080CW444MXX`, nicht über die API verifiziert), jetzt Voreinstellung.
+  Ränder/Schriftgröße je Format in `PageLayout` (A4: innen ≥ 25, außen 22, oben/unten 27 mm, 12 pt).
+  `BookGeometry.Screen` entfällt: Lese- und Druckversion nutzen den Profil-Satzspiegel (nur Beschnitt unterscheidet sich).
+- Vorschau: `Services/PreviewService.cs`, `PreviewWindow`, `Services/LatexRunner.cs` (LuaLaTeX/pdftoppm, Seitenmarken).
+  Getestet mit Februar 2026 in A4: 24 Seiten für 23 Einträge/67 Fotos (Ø 1,0 Einträge je Seite), 26 s beim ersten
+  Lauf, Einzeleintrag 14 s; Seitenzuordnung stimmt mit den gerenderten Seiten überein. A4-Umschlag nachgemessen
+  (442,75 × 303,35 mm bei 260 Seiten).
+- Einstellungen: `Models/AppSettings.cs`, `SettingsWindow`. Hilfe: `HelpWindow` (FlowDocument).
+- Hinweis A4: Die 1600-px-Fotos des Diarium-Exports ergeben auf dem A4-Umschlag nur ca. 190 ppi und bei
+  ganzseitigen Fotos im Innenteil ebenfalls unter 200 ppi – die Vorabprüfung meldet das als Hinweis.
+  Falls Diarium einen Export in Originalgröße anbietet, wäre das für A4 die bessere Quelle.
+- Nicht getestet: die neuen Fenster per Klick in der laufenden App (die App lief beim Bauen beim Nutzer und
+  sperrte die EXE; gebaut und geprüft wurde in einen separaten Ordner).
 
 **Erledigt in v27:** Assistent „Jahresbuch“ (`YearbookWindow`), automatische Fotoauswahl
 (`Services/PhotoSelection.cs`), „Alle als geprüft markieren“, Testprojekt mit 53 Tests (alle grün).
@@ -177,6 +192,9 @@ Design komplett in `diarybook.sty` steckt:
 - `Services/PhotoSelection.cs` – automatische Fotoauswahl (Aufnahmereihenfolge, Duplikate, Verteilung)
 - `YearbookWindow.xaml(.cs)` – Assistent „Jahresbuch drucken“
 - `DiariumBookStudio.Tests/` – Unit-Tests (`dotnet test`)
+- `Services/PreviewService.cs` + `PreviewWindow` – Vorschau als Doppelseiten
+- `Services/LatexRunner.cs` – LuaLaTeX, pdftoppm, Seitenzahl und Seitenmarken
+- `Models/AppSettings.cs` + `SettingsWindow` – App-Einstellungen; `HelpWindow` – Hilfe
 - `Services/Preflight.cs` + `PreflightWindow` – Vorabprüfung
 - `Services/GalleryLayout.cs` – Fotoreihen im Blocksatz
 - `Services/MapService.cs` – OSM-Karten, Kachel-Cache, Reverse-Geocoding

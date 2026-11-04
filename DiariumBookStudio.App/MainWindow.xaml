@@ -3,13 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:DiariumBookStudio.Models"
         xmlns:local="clr-namespace:DiariumBookStudio"
-        Title="Diarium Book Studio v27" Height="820" Width="1350" MinHeight="650" MinWidth="1100"
+        Title="Diarium Book Studio v28" Height="820" Width="1350" MinHeight="650" MinWidth="1100"
         Closing="Window_Closing">
     <Window.Resources>
         <local:ThumbnailConverter x:Key="Thumbnail" DecodePixelWidth="240" />
     </Window.Resources>
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Save" Executed="SaveCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.Help" Executed="Help_Executed" />
     </Window.CommandBindings>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
@@ -21,6 +22,8 @@
                 <MenuItem Header="Projekt speichern" Click="SaveProject_Click" InputGestureText="Strg+S" />
                 <MenuItem Header="LaTeX erzeugen unter..." Click="ExportLatex_Click" />
                 <Separator />
+                <MenuItem Header="Einstellungen..." Click="Settings_Click" />
+                <Separator />
                 <MenuItem Header="Beenden" Click="Exit_Click" />
             </MenuItem>
             <MenuItem Header="Buch">
@@ -29,8 +32,13 @@
                 <MenuItem Header="Fotos automatisch auswählen..." Click="AutoPhotos_Click" />
                 <MenuItem Header="Alle Einträge als geprüft markieren..." Click="MarkAllDone_Click" />
                 <Separator />
+                <MenuItem Header="Vorschau" Click="Preview_Click" />
                 <MenuItem Header="Vorabprüfung" Click="Preflight_Click" />
                 <MenuItem Header="Druckpaket erzeugen" Click="PrintPackage_Click" />
+            </MenuItem>
+            <MenuItem Header="Hilfe">
+                <MenuItem Header="Anleitung" Command="ApplicationCommands.Help" InputGestureText="F1" />
+                <MenuItem Header="Über Diarium Book Studio" Click="About_Click" />
             </MenuItem>
         </Menu>
 
@@ -65,6 +73,12 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="🧾" Margin="0,0,5,0" />
                         <TextBlock Text="LaTeX" />
+                    </StackPanel>
+                </Button>
+                <Button ToolTip="Vorschau: ausgewählten Eintrag oder seinen Monat als Doppelseiten anzeigen – wie fallen Text und Fotos, wie viele Einträge passen auf eine Seite?" Click="Preview_Click" Padding="8,4" Margin="2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="👁" Margin="0,0,5,0" />
+                        <TextBlock Text="Vorschau" />
                     </StackPanel>
                 </Button>
                 <Button ToolTip="Buch vor dem Druck prüfen: fehlende Fotos, Auflösung, ungeprüfte Einträge" Click="Preflight_Click" Padding="8,4" Margin="2">

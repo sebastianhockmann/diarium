@@ -1,0 +1,81 @@
+<Window x:Class="DiariumBookStudio.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Einstellungen" Width="680" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <StackPanel Margin="16">
+        <GroupBox Header="Ordner" Padding="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Projektordner:" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1" x:Name="ProjectsFolderBox" Padding="3" />
+                <Button Grid.Column="2" Content="..." Width="30" Margin="6,0,0,0" Click="BrowseProjectsFolder_Click" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Foreground="Gray" FontSize="11" Margin="0,2,0,10" TextWrapping="Wrap"
+                           Text="Hier legt der Import neue Projekte an (ein Unterordner je Diarium-Export). Bestehende Projekte bleiben, wo sie sind." />
+
+                <TextBlock Grid.Row="2" Text="Druckpakete:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="2" Grid.Column="1" x:Name="PackageFolderBox" Padding="3" />
+                <Button Grid.Row="2" Grid.Column="2" Content="..." Width="30" Margin="6,0,0,0" Click="BrowsePackageFolder_Click" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Foreground="Gray" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap"
+                           Text="Leer: im Ausgabeordner des Projekts (…\output)." />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="LuaLaTeX" Padding="8" Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="lualatex.exe:" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1" x:Name="LuaLatexBox" Padding="3" />
+                <Button Grid.Column="2" Content="..." Width="30" Margin="6,0,0,0" Click="BrowseLuaLatex_Click" />
+                <Button Grid.Column="3" Content="Prüfen" Padding="8,0" Margin="6,0,0,0" Click="TestLuaLatex_Click" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" x:Name="LuaLatexInfo" Foreground="Gray" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap"
+                           Text="Leer: lualatex aus dem Suchpfad (PATH), wie MiKTeX es einrichtet." />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Header="Voreinstellungen für neue Projekte" Padding="8" Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Format / Druckerei:" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" x:Name="ProfileBox" />
+                <TextBlock Grid.Row="1" Text="Fotos je Eintrag:" VerticalAlignment="Center" Margin="0,6,0,0" />
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="MaxPhotosBox" Width="40" HorizontalAlignment="Left" Padding="3" Margin="0,6,0,0"
+                         ToolTip="Höchstzahl für die automatische Fotoauswahl" />
+            </Grid>
+        </GroupBox>
+
+        <CheckBox x:Name="OpenLastProjectCheckBox" Content="Beim Start das zuletzt geöffnete Projekt öffnen" Margin="0,12,0,0" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Speichern" Padding="14,4" Margin="0,0,8,0" IsDefault="True" Click="Save_Click" />
+            <Button Content="Abbrechen" Padding="14,4" IsCancel="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

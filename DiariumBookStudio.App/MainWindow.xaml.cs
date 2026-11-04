@@ -22,7 +22,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v27";
+    public string AppVersion { get; } = "DiariumBookStudio v28";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
@@ -33,12 +33,15 @@ public partial class MainWindow : Window
     private volatile bool _dirty;
     private bool _isBuilding;
     private readonly DispatcherTimer _autosaveTimer = new() { Interval = TimeSpan.FromSeconds(5) };
+    private AppSettings _settings = AppSettings.Load();
+    private PreviewWindow? _previewWindow;
 
     public MainWindow()
     {
         InitializeComponent();
         DataContext = this;
         EntryTree.ItemsSource = _visibleMonths;
+        Loaded += (_, _) => OpenLastProject();
         _autosaveTimer.Tick += (_, _) =>
         {
             if (_dirty && !_isBuilding) TrySave(automatic: true);
@@ -46,10 +49,26 @@ public partial class MainWindow : Window
         _autosaveTimer.Start();
     }
 
+    private void OpenLastProject()
+    {
+        if (!_settings.OpenLastProject || !File.Exists(_settings.LastProjectFile)) return;
+        try
+        {
+            AttachProject(BookProject.Load(_settings.LastProjectFile));
+            StatusText.Text = $"Zuletzt geöffnetes Projekt: {_settings.LastProjectFile}";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Letztes Projekt konnte nicht geöffnet werden: {ex.Message}";
+        }
+    }
+
     /// <summary>Setzt das aktuelle Projekt und beobachtet Änderungen an Einträgen und Bildern fürs Autospeichern.</summary>
     private void AttachProject(BookProject project)
     {
         _project = project;
+        _settings.LastProjectFile = project.ProjectFile;
+        TrySaveSettings();
         foreach (var entry in project.Entries)
         {
             entry.PropertyChanged += (_, _) => _dirty = true;
@@ -134,10 +153,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void RunImport(string exportName, Func<string, BookProject> import)
     {
-        var projectRoot = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "DiariumBookStudio",
-            exportName);
+        var projectRoot = Path.Combine(_settings.ProjectsFolder, exportName);
 
         if (_project is not null)
         {
@@ -165,7 +181,15 @@ public partial class MainWindow : Window
 
         try
         {
+            var isNew = !File.Exists(Path.Combine(projectRoot, "diarium-book-project.json"));
             var project = import(projectRoot);
+            if (isNew)
+            {
+                // Voreinstellungen aus den Einstellungen übernehmen.
+                project.PrintProfileId = _settings.DefaultPrintProfileId;
+                project.MaxPhotosPerEntry = _settings.DefaultMaxPhotosPerEntry;
+                project.Save();
+            }
             AttachProject(project);
             StatusText.Text = $"Import fertig: {project.Entries.Count} Einträge. Projekt: {project.ProjectFile}";
         }
@@ -429,7 +453,9 @@ public partial class MainWindow : Window
                 var notes = problems.Select(p => p.Message).ToList();
                 var notReviewed = report.Issues.Count(i => i.Message.Contains("geprüft"));
                 if (notReviewed > 0) notes.Add($"{notReviewed} Einträge sind noch nicht als geprüft markiert.");
-                packageFolder = PrintPackage.Create(_project, profile, pages, pdfPath, coverPath, outputDir, notes);
+                var packageRoot = string.IsNullOrWhiteSpace(_settings.PrintPackageFolder) ? outputDir : _settings.PrintPackageFolder;
+                Directory.CreateDirectory(packageRoot);
+                packageFolder = PrintPackage.Create(_project, profile, pages, pdfPath, coverPath, packageRoot, notes);
             }
 
             var summary = new StringBuilder()
@@ -547,64 +573,12 @@ public partial class MainWindow : Window
         SetBuildProgress(true, $"{prefix}LuaLaTeX, Lauf 1 von 2...");
         await RunLuaLatexAsync(texPath, jobName);
         SetBuildProgress(true, $"{prefix}LuaLaTeX, Lauf 2 von 2...");
-        var output = await RunLuaLatexAsync(texPath, jobName);
-        // TeX bricht lange Protokollzeilen um – daher auch über Zeilenenden hinweg suchen.
-        var match = Regex.Match(output, @"Output written on .*?\(\s*(\d+)\s+pages?", RegexOptions.Singleline);
-        if (!match.Success)
-            throw new InvalidOperationException("Die Seitenzahl des PDFs konnte nicht aus der LuaLaTeX-Ausgabe ermittelt werden.");
-        return int.Parse(match.Groups[1].Value);
+        return LatexRunner.PageCount(await RunLuaLatexAsync(texPath, jobName));
     }
 
     /// <returns>Ausgabe von LuaLaTeX.</returns>
-    private static async Task<string> RunLuaLatexAsync(string texPath, string jobName)
-    {
-        var workingDirectory = Path.GetDirectoryName(texPath)
-            ?? throw new InvalidOperationException("Der Ausgabeordner konnte nicht bestimmt werden.");
-
-        var fileName = Path.GetFileName(texPath);
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = "lualatex",
-            Arguments = $"-interaction=nonstopmode -halt-on-error -jobname=\"{jobName}\" \"{fileName}\"",
-            WorkingDirectory = workingDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8
-        };
-
-        Process? started;
-        try
-        {
-            started = Process.Start(psi);
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            started = null;
-        }
-        using var process = started
-            ?? throw new InvalidOperationException("LuaLaTeX wurde nicht gefunden. Ist MiKTeX installiert und „lualatex“ im PATH? " +
-                                                   "Nach der Installation von MiKTeX die App neu starten.");
-
-        var stdoutTask = process.StandardOutput.ReadToEndAsync();
-        var stderrTask = process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
-
-        var stdout = await stdoutTask;
-        var stderr = await stderrTask;
-
-        if (process.ExitCode != 0)
-        {
-            var logPath = Path.Combine(workingDirectory, "lualatex_error.txt");
-            await File.WriteAllTextAsync(logPath, stdout + Environment.NewLine + stderr, Encoding.UTF8);
-            throw new InvalidOperationException(LatexErrorReport.Describe(stdout, texPath, logPath));
-        }
-        return stdout;
-    }
-
+    private Task<string> RunLuaLatexAsync(string texPath, string jobName)
+        => LatexRunner.RunAsync(_settings.LuaLatexCommand, texPath, jobName);
     private IProgress<string> CreateProgress() => new Progress<string>(message => StatusText.Text = message);
 
     private void SetBuildProgress(bool isRunning, string message)
@@ -626,6 +600,89 @@ public partial class MainWindow : Window
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var window = new SettingsWindow(_settings) { Owner = this };
+        if (window.ShowDialog() != true) return;
+        _settings = window.Settings;
+        if (TrySaveSettings())
+            StatusText.Text = "Einstellungen gespeichert.";
+    }
+
+    private bool TrySaveSettings()
+    {
+        try
+        {
+            _settings.Save();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusText.Text = $"Einstellungen konnten nicht gespeichert werden: {ex.Message}";
+            return false;
+        }
+    }
+
+    private void Help_Executed(object sender, ExecutedRoutedEventArgs e) => new HelpWindow { Owner = this }.Show();
+
+    private async void Preview_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null)
+        {
+            MessageBox.Show(this, "Bitte zuerst eine Diarium-ZIP importieren oder ein Projekt öffnen.");
+            return;
+        }
+        if (_previewWindow is null)
+        {
+            _previewWindow = new PreviewWindow(CreatePreviewAsync, SelectEntry) { Owner = this };
+            _previewWindow.Closed += (_, _) => _previewWindow = null;
+            _previewWindow.Show();
+        }
+        else
+        {
+            _previewWindow.Activate();
+        }
+        await _previewWindow.RefreshAsync();
+    }
+
+    /// <summary>Vorschau für den ausgewählten Eintrag bzw. seinen Monat (für das Vorschaufenster).</summary>
+    private async Task<PreviewResult?> CreatePreviewAsync(bool wholeMonth)
+    {
+        if (_project is null) return null;
+        var entry = _currentEntry ?? _project.BookEntries.OrderBy(en => en.Date ?? DateTime.MaxValue).FirstOrDefault();
+        if (entry is null)
+        {
+            MessageBox.Show(this, "Das Buch enthält keine Einträge.", "Vorschau");
+            return null;
+        }
+        if (_isBuilding)
+        {
+            MessageBox.Show(this, "Es läuft gerade schon ein Export. Bitte kurz warten.", "Vorschau");
+            return null;
+        }
+
+        try
+        {
+            SetBuildProgress(true, "Vorschau wird erzeugt...");
+            var result = await PreviewService.CreateAsync(_project, entry, wholeMonth, _settings, CreateProgress());
+            ShowEntry(_currentEntry); // Ortsnamen können beim Export ergänzt worden sein
+            SetBuildProgress(false, $"Vorschau: {result.Title} – {result.Pages.Count} Seiten.");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            SetBuildProgress(false, "Vorschau fehlgeschlagen.");
+            MessageBox.Show(this, ex.Message, "Vorschau fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+            return null;
+        }
+    }
+
+    private void About_Click(object sender, RoutedEventArgs e)
+        => MessageBox.Show(this,
+            $"{AppVersion}\n\nMacht aus einem Diarium-Export ein gedrucktes Buch.\n\n" +
+            $"Einstellungen: %APPDATA%\\DiariumBookStudio\\settings.json\nProjektordner: {_settings.ProjectsFolder}",
+            "Über Diarium Book Studio", MessageBoxButton.OK, MessageBoxImage.Information);
 
     private void RefreshEntryTree()
     {

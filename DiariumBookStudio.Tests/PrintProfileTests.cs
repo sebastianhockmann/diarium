@@ -70,6 +70,22 @@ public class PrintProfileTests
     }
 
     [Fact]
+    public void A4_GroessereSchriftUndSicherheitsabstand()
+    {
+        var a4 = PrintProfiles.LuluA4Paperback;
+        var g = a4.InteriorGeometry(300);
+        Assert.Equal(12, g.FontSize);
+        Assert.Equal(210 - 25.4 - 22, g.TextWidth, 3);
+        Assert.True(g.Top - g.HeadSep >= a4.SafetyMargin + 3);
+        Assert.True(g.Bottom - g.FootSkip >= a4.SafetyMargin);
+        Assert.Equal(2 * 210 + a4.SpineWidth(300) + 2 * 3.175, a4.CoverSize(300).Width, 3);
+    }
+
+    [Fact]
+    public void Voreinstellung_IstA4()
+        => Assert.Same(PrintProfiles.LuluA4Paperback, PrintProfiles.Default);
+
+    [Fact]
     public void Find_UnbekannteIdLiefertVoreinstellung()
         => Assert.Same(PrintProfiles.Default, PrintProfiles.Find("gibt-es-nicht"));
 }

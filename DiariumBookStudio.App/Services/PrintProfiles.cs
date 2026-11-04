@@ -10,16 +10,14 @@ namespace DiariumBookStudio.Services;
 /// Seitenmaße des Innenteils in mm. Wird vor \usepackage{diarybook} als Makros in book.tex
 /// geschrieben (siehe diarybook.sty) und für die Auflösungsprüfung verwendet.
 /// </summary>
+/// <param name="FontSize">Grundschrift in pt (Klassenoption von scrbook).</param>
 public sealed record BookGeometry(
     double TrimWidth, double TrimHeight, double Bleed,
     double Inner, double Outer, double Top, double Bottom,
-    double HeadSep, double FootSkip)
+    double HeadSep, double FootSkip, int FontSize)
 {
     public double TextWidth => TrimWidth - Inner - Outer;
     public double TextHeight => TrimHeight - Top - Bottom;
-
-    /// <summary>Bildschirm-/Leseversion ohne Beschnitt – entspricht den Vorgaben in diarybook.sty.</summary>
-    public static BookGeometry Screen { get; } = new(148, 210, 0, 19, 15, 18, 20, 6, 10);
 
     public string ToLatex()
     {
@@ -41,6 +39,13 @@ public sealed record BookGeometry(
 }
 
 /// <summary>
+/// Ränder eines Formats in mm. Kopfzeile (Top − HeadSep) und Seitenzahl (Bottom − FootSkip)
+/// müssen innerhalb des Sicherheitsabstands der Druckerei liegen.
+/// </summary>
+/// <param name="MinInner">Innenrand mindestens – wächst bei dicken Büchern mit dem Bundsteg.</param>
+public sealed record PageLayout(double MinInner, double Outer, double Top, double Bottom, double HeadSep, double FootSkip, int FontSize);
+
+/// <summary>
 /// Vorgaben eines Druckprodukts: Format, Beschnitt, Sicherheitsabstand, Seitenzahlgrenzen,
 /// Rückenbreite und Bundsteg. Weitere Druckereien werden als zusätzliche Profile ergänzt.
 /// </summary>
@@ -54,6 +59,7 @@ public sealed record PrintProfile(
     double TrimHeight,
     double Bleed,
     double SafetyMargin,
+    PageLayout Layout,
     int MinPages,
     int MaxPages,
     // Unter dieser Seitenzahl keine Schrift auf dem Buchrücken (Lulu: bis 80 Seiten)
@@ -69,17 +75,15 @@ public sealed record PrintProfile(
     public override string ToString() => Name;
 
     /// <summary>
-    /// Satzspiegel der Druckversion. Kopfzeile und Seitenzahl liegen innerhalb des
-    /// Sicherheitsabstands, der Innenrand wächst mit der Seitenzahl (Bundsteg).
+    /// Satzspiegel des Buches (Druck- und Leseversion gleich, damit Vorschau und Druck dieselben
+    /// Seitenumbrüche haben). Der Innenrand wächst mit der Seitenzahl (Bundsteg).
     /// </summary>
     public BookGeometry InteriorGeometry(int pageCount)
-    {
-        // Kopfzeile: Grundlinie Top − HeadSep = 17 mm vom Endformat, Seitenzahl: Bottom − FootSkip = 14 mm.
-        var outer = Math.Max(BookGeometry.Screen.Outer, SafetyMargin + 2);
-        return new BookGeometry(TrimWidth, TrimHeight, Bleed,
-            Inner: Math.Max(BookGeometry.Screen.Inner, InnerMargin(pageCount)),
-            Outer: outer, Top: 24, Bottom: 24, HeadSep: 7, FootSkip: 10);
-    }
+        => new(TrimWidth, TrimHeight, Bleed,
+            Inner: Math.Max(Layout.MinInner, InnerMargin(pageCount)),
+            Outer: Math.Max(Layout.Outer, SafetyMargin + 2),
+            Top: Layout.Top, Bottom: Layout.Bottom, HeadSep: Layout.HeadSep, FootSkip: Layout.FootSkip,
+            FontSize: Layout.FontSize);
 
     /// <summary>Gesamtmaße des Umschlags (Rückseite + Rücken + Vorderseite, mit Beschnitt) in mm.</summary>
     public (double Width, double Height, double Spine) CoverSize(int pageCount)
@@ -101,6 +105,49 @@ public static class PrintProfiles
 {
     private const double Inch = 25.4;
 
+    /// <summary>Lulu-Bundsteg nach Seitenzahl (Book Creation Guide, „Gutter Additions“).</summary>
+    private static double LuluGutter(int pages) => pages switch
+    {
+        <= 60 => 0.5 * Inch,
+        <= 150 => 0.625 * Inch,
+        <= 400 => 1.0 * Inch,
+        <= 600 => 1.125 * Inch,
+        _ => 1.25 * Inch
+    };
+
+    /// <summary>Lulu-Taschenbuch: Rücken = Seiten / 444 + 0,06 in (gilt für alle Formate).</summary>
+    private static double LuluPaperbackSpine(int pages) => (pages / 444.0 + 0.06) * Inch;
+
+    private static readonly string[] LuluPaperbackOptions =
+    {
+        "Bindung: Taschenbuch / Paperback (Perfect Bound)",
+        "Innenteil: Premium Color",
+        "Papier: 80# White – Coated",
+        "Umschlag: Matt (Matte)"
+    };
+
+    /// <summary>
+    /// Lulu A4-Taschenbuch (Klebebindung), Premium-Farbe auf 80# gestrichenem Papier, matter Umschlag.
+    /// Größere Fotos als A5; 12 pt Schrift und breitere Ränder, damit die Zeilen lesbar bleiben.
+    /// </summary>
+    public static PrintProfile LuluA4Paperback { get; } = new(
+        Id: "lulu-a4-pb-premium",
+        Name: "Lulu · A4 Taschenbuch · Premium-Farbe",
+        Provider: "Lulu",
+        PodPackageId: "0827X1169FCPREPB080CW444MXX",
+        TrimWidth: 210,
+        TrimHeight: 297,
+        Bleed: 0.125 * Inch,
+        SafetyMargin: 0.5 * Inch,
+        Layout: new PageLayout(MinInner: 25, Outer: 22, Top: 27, Bottom: 27, HeadSep: 9, FootSkip: 12, FontSize: 12),
+        MinPages: 32,
+        MaxPages: 800,
+        MinPagesForSpineText: 81,
+        SpineWidth: LuluPaperbackSpine,
+        InnerMargin: LuluGutter,
+        OrderUrl: "https://www.lulu.com/create/print-books",
+        ProductOptions: new[] { "Buchformat: A4 (8.27 × 11.69 in / 210 × 297 mm)" }.Concat(LuluPaperbackOptions).ToList());
+
     /// <summary>
     /// Lulu A5-Taschenbuch (Klebebindung), Premium-Farbe auf 80# gestrichenem Papier, matter Umschlag.
     /// Vorgaben aus dem „Lulu Book Creation Guide“: Beschnitt 0,125 in, Sicherheitsabstand 0,5 in,
@@ -115,31 +162,20 @@ public static class PrintProfiles
         TrimHeight: 210,
         Bleed: 0.125 * Inch,
         SafetyMargin: 0.5 * Inch,
+        // Kopfzeile: Grundlinie 17 mm vom Endformat, Seitenzahl 14 mm – beide innerhalb von 12,7 mm.
+        Layout: new PageLayout(MinInner: 19, Outer: 15, Top: 24, Bottom: 24, HeadSep: 7, FootSkip: 10, FontSize: 11),
         MinPages: 32,
         MaxPages: 800,
         MinPagesForSpineText: 81,
-        SpineWidth: pages => (pages / 444.0 + 0.06) * Inch,
-        InnerMargin: pages => pages switch
-        {
-            <= 60 => 0.5 * Inch,
-            <= 150 => 0.625 * Inch,
-            <= 400 => 1.0 * Inch,
-            <= 600 => 1.125 * Inch,
-            _ => 1.25 * Inch
-        },
+        SpineWidth: LuluPaperbackSpine,
+        InnerMargin: LuluGutter,
         OrderUrl: "https://www.lulu.com/create/print-books",
-        ProductOptions: new[]
-        {
-            "Buchformat: A5 (5.83 × 8.27 in / 148 × 210 mm)",
-            "Bindung: Taschenbuch / Paperback (Perfect Bound)",
-            "Innenteil: Premium Color",
-            "Papier: 80# White – Coated",
-            "Umschlag: Matt (Matte)"
-        });
+        ProductOptions: new[] { "Buchformat: A5 (5.83 × 8.27 in / 148 × 210 mm)" }.Concat(LuluPaperbackOptions).ToList());
 
-    public static IReadOnlyList<PrintProfile> All { get; } = new[] { LuluA5Paperback };
+    public static IReadOnlyList<PrintProfile> All { get; } = new[] { LuluA4Paperback, LuluA5Paperback };
 
-    public static PrintProfile Default => LuluA5Paperback;
+    /// <summary>Voreinstellung für neue Projekte (änderbar in den Einstellungen).</summary>
+    public static PrintProfile Default => LuluA4Paperback;
 
     public static PrintProfile Find(string? id) => All.FirstOrDefault(p => p.Id == id) ?? Default;
 }

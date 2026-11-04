@@ -9,7 +9,7 @@
 %  verwendet dann diese Version statt der mitgelieferten.
 % =====================================================================
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{diarybook}[2026/11/04 DiariumBookStudio Layout v25]
+\ProvidesPackage{diarybook}[2026/11/04 DiariumBookStudio Layout v28]
 %  Optionen:  print – Beschnitt (\DiaryBleed), TrimBox/BleedBox, Seitenzahl durch 4 teilbar
 %             gray  – Akzente in Graustufen (günstigerer Schwarz-Weiß-Druck für Textseiten)
 
@@ -205,6 +205,16 @@
 %  #1 Datum  #2 Titel  #3 Metadatenzeile  #4 Kartendatei (leer = keine Karte)
 %  #5 Text für das Inhaltsverzeichnis
 % ---------------------------------------------------------------------
+% Seitenmarke für Vorschau und Statistik: book.tex ruft vor jedem Eintrag \DiaryEntryKey{<Schlüssel>}
+% auf; der Eintragskopf schreibt nach einem möglichen Seitenumbruch „DIARYPAGE:<Seite>:<Schlüssel>“
+% ins Protokoll (die Seitenzahl wird erst beim Ausgeben der Seite eingesetzt).
+\def\diary@currentkey{}
+\newcommand\DiaryEntryKey[1]{\gdef\diary@currentkey{#1}}
+\newcommand\diary@pagemark{%
+  \ifx\diary@currentkey\@empty\else
+    \edef\diary@tmp{\write-1{DIARYPAGE:\noexpand\thepage:\diary@currentkey}}\diary@tmp
+  \fi}
+
 \newcommand\DiaryEntryHead[5]{%
   \par\penalty-100 % gibt dem Seitenumbruch-Algorithmus Gelegenheit, \pagetotal zu aktualisieren
   % Reicht der Platz für Kopf und erste Zeilen nicht, neue Seite – dann ohne Trennzeichen,
@@ -222,6 +232,7 @@
     \fi
   \fi
   \diary@next
+  \diary@pagemark
   \global\diary@separatortrue
   \phantomsection
   \addcontentsline{toc}{section}{#5}%
@@ -253,6 +264,7 @@
   \let\diary@next\relax
   \ifdim\pagegoal=\maxdimen\else\ifdiary@separator\let\diary@next\DiarySeparator\fi\fi
   \diary@next
+  \diary@pagemark
   \global\diary@separatortrue
   \phantomsection
   \addcontentsline{toc}{section}{#4}%

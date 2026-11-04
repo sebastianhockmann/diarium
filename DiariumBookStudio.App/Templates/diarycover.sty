@@ -49,6 +49,10 @@
 \newlength\dc@titleyfree \setlength\dc@titleyfree{\dimexpr\dc@bleed+0.56\dc@trimh\relax}
 \newlength\dc@backy  \setlength\dc@backy{\dimexpr\dc@bleed+0.6\dc@trimh\relax}
 
+% Schriftgrößen wachsen mit dem Format (Bezug: A5, 148 mm breit)
+\edef\dc@scale{\fpeval{round(\dc@trimw/148mm,3)}}
+\newcommand\dc@size[1]{\fontsize{\fpeval{#1*\dc@scale}}{\fpeval{1.2*#1*\dc@scale}}\selectfont}
+
 \RequirePackage{geometry}
 \geometry{paperwidth=\dc@paperw,paperheight=\dc@paperh,margin=0pt,noheadfoot}
 
@@ -89,26 +93,26 @@
 %  Bausteine
 % ---------------------------------------------------------------------
 \newcommand\DiaryCoverTitleBlock[3]{%
-  {\color{DiaryAccent}\rule{24mm}{0.6pt}\par}
+  {\color{DiaryAccent}\rule{\fpeval{24*\dc@scale}mm}{0.6pt}\par}
   \vspace{5mm}
-  {\fontsize{26}{31}\selectfont\color{DiaryInk}#1\par}
+  {\dc@size{26}\color{DiaryInk}#1\par}
   \if\relax\detokenize{#2}\relax\else
-    \vspace{2.5mm}{\large\itshape\color{DiaryMuted}#2\par}
+    \vspace{2.5mm}{\dc@size{12}\itshape\color{DiaryMuted}#2\par}
   \fi
   \if\relax\detokenize{#3}\relax\else
-    \vspace{5mm}{\small\color{DiaryAccent}\scshape\addfontfeatures{LetterSpace=10}\MakeLowercase{#3}\par}
+    \vspace{5mm}{\dc@size{9}\color{DiaryAccent}\scshape\addfontfeatures{LetterSpace=10}\MakeLowercase{#3}\par}
   \fi
 }
 
 \newcommand\DiaryCoverBack[2]{%
   \color{white}
   \if\relax\detokenize{#1}\relax\else
-    {\scshape\addfontfeatures{LetterSpace=10}\MakeLowercase{#1}\par}
+    {\dc@size{10}\scshape\addfontfeatures{LetterSpace=10}\MakeLowercase{#1}\par}
     \vspace{4mm}
   \fi
-  {\color{white}\rule{18mm}{0.4pt}\par}
+  {\color{white}\rule{\fpeval{18*\dc@scale}mm}{0.4pt}\par}
   \if\relax\detokenize{#2}\relax\else
-    \vspace{4mm}{\small #2\par}
+    \vspace{4mm}{\dc@size{9}#2\par}
   \fi
 }
 
