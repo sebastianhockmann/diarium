@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:DiariumBookStudio.Models"
         xmlns:local="clr-namespace:DiariumBookStudio"
-        Title="Diarium Book Studio v26" Height="820" Width="1350" MinHeight="650" MinWidth="1100"
+        Title="Diarium Book Studio v27" Height="820" Width="1350" MinHeight="650" MinWidth="1100"
         Closing="Window_Closing">
     <Window.Resources>
         <local:ThumbnailConverter x:Key="Thumbnail" DecodePixelWidth="240" />
@@ -22,6 +22,15 @@
                 <MenuItem Header="LaTeX erzeugen unter..." Click="ExportLatex_Click" />
                 <Separator />
                 <MenuItem Header="Beenden" Click="Exit_Click" />
+            </MenuItem>
+            <MenuItem Header="Buch">
+                <MenuItem Header="Jahresbuch drucken..." Click="Yearbook_Click" FontWeight="SemiBold" />
+                <Separator />
+                <MenuItem Header="Fotos automatisch auswählen..." Click="AutoPhotos_Click" />
+                <MenuItem Header="Alle Einträge als geprüft markieren..." Click="MarkAllDone_Click" />
+                <Separator />
+                <MenuItem Header="Vorabprüfung" Click="Preflight_Click" />
+                <MenuItem Header="Druckpaket erzeugen" Click="PrintPackage_Click" />
             </MenuItem>
         </Menu>
 
@@ -68,6 +77,12 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="📕" Margin="0,0,5,0" />
                         <TextBlock Text="PDF erzeugen &amp; öffnen" />
+                    </StackPanel>
+                </Button>
+                <Button ToolTip="Assistent: Jahr wählen, Fotos automatisch auswählen und Druckpaket erzeugen" Click="Yearbook_Click" Padding="8,4" Margin="2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="📅" Margin="0,0,5,0" />
+                        <TextBlock Text="Jahresbuch" FontWeight="SemiBold" />
                     </StackPanel>
                 </Button>
                 <Button ToolTip="Druckversion mit Umschlag erzeugen und mit Bestellanleitung in einen Ordner legen (z. B. für ein Probeexemplar)" Click="PrintPackage_Click" Padding="8,4" Margin="2">

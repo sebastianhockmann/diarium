@@ -27,6 +27,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="YearbookWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DiariumBookStudio.Tests" />
   </ItemGroup>
 
   <ItemGroup>

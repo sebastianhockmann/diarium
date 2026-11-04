@@ -298,3 +298,21 @@ Druckerei-Profil und Buchumschlag:
   Dazu kommt `Druckinfo.txt` mit Produkt, Produktcode, Seitenzahl, Maßen, Schritten zum Hochladen
   und Bestellen bei der Druckerei sowie offenen Hinweisen (z. B. ungeprüfte Einträge).
 - Die PDFs werden in den Paketordner verschoben, nicht kopiert (sie sind oft über 100 MB groß).
+
+
+## Version 27 (2026-11-04)
+
+Weniger Handarbeit pro Jahr:
+
+- Assistent **„Jahresbuch“** (Symbolleiste bzw. Menü „Buch“): Jahr, Titel, Untertitel und Druckerei wählen,
+  optional Fotos automatisch auswählen und alle Einträge als geprüft markieren – danach entsteht das Druckpaket.
+  Vorschlag: das letzte abgeschlossene Jahr, Titel „Tagebuch <Jahr>“.
+- **Fotos automatisch auswählen** (Menü „Buch“) für alle ungeprüften Einträge, höchstens 6 je Eintrag:
+  - Diarium exportiert die Fotos nicht in Aufnahmereihenfolge; sie wird über die Kamera-Bildnummer
+    (`IMG_1234`) wiederhergestellt, die Fotos erscheinen so auch im Buch chronologisch.
+  - Fast gleiche Fotos (Serienbilder, Duplikate) werden über einen Bild-Fingerabdruck erkannt und
+    zusammengefasst; es bleibt das detailreichste. Fingerabdrücke werden im Projekt gespeichert.
+  - Der Rest wird gleichmäßig über den Tag verteilt; Titelbilder bleiben, geprüfte Einträge unverändert.
+- **Alle Einträge als geprüft markieren** (Menü „Buch“).
+- Testprojekt `DiariumBookStudio.Tests` (xUnit, `dotnet test`): Textumwandlung, Galerie-Layout,
+  Druckprofil (Rückenbreite, Bundsteg, Umschlag, Seitenzahlgrenzen), Fotoauswahl, Vorabprüfung.

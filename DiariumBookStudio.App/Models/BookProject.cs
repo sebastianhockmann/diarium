@@ -34,6 +34,9 @@ public class BookProject
     /// <summary>Seitenzahl der letzten Druckversion – Startwert für Bundsteg und Rückenbreite.</summary>
     public int? LastPageCount { get; set; }
 
+    /// <summary>Höchstzahl Fotos je Eintrag für die automatische Auswahl.</summary>
+    public int MaxPhotosPerEntry { get; set; } = 6;
+
     /// <summary>Foto für den Buchumschlag (RelativePath eines Bildes). Leer: automatisch wählen.</summary>
     public string CoverImage { get; set; } = string.Empty;
 

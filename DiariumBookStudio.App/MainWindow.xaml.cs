@@ -22,7 +22,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v26";
+    public string AppVersion { get; } = "DiariumBookStudio v27";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
@@ -240,6 +240,105 @@ public partial class MainWindow : Window
     }
 
     private async void GeneratePdf_Click(object sender, RoutedEventArgs e) => await BuildBookAsync(package: false);
+
+    /// <summary>Assistent: Jahr und Titel wählen, Fotos automatisch auswählen, Druckpaket erzeugen.</summary>
+    private async void Yearbook_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null)
+        {
+            MessageBox.Show(this, "Bitte zuerst eine Diarium-ZIP importieren oder ein Projekt öffnen.");
+            return;
+        }
+        var wizard = new YearbookWindow(_project) { Owner = this };
+        if (wizard.ShowDialog() != true) return;
+
+        _project.Year = wizard.Year;
+        _project.BookTitle = wizard.BookTitle;
+        _project.BookSubtitle = wizard.BookSubtitle;
+        _project.PrintProfileId = wizard.Profile.Id;
+        _project.MaxPhotosPerEntry = wizard.MaxPhotos;
+        _project.PrintVersion = true;
+        _dirty = true;
+        ShowProjectSettings();
+        RefreshEntryTree();
+
+        try
+        {
+            if (wizard.AutoPhotos)
+                await AutoSelectPhotosAsync(_project.BookEntries.Where(en => !en.Done).ToList(), wizard.MaxPhotos);
+            if (wizard.MarkDone)
+                MarkDone(_project.BookEntries);
+        }
+        catch (Exception ex)
+        {
+            SetBuildProgress(false, "Fotoauswahl fehlgeschlagen.");
+            MessageBox.Show(this, ex.Message, "Fotoauswahl fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        await BuildBookAsync(package: true);
+    }
+
+    private async void AutoPhotos_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null) return;
+        var open = _project.BookEntries.Where(en => !en.Done).ToList();
+        if (open.Count == 0)
+        {
+            MessageBox.Show(this, "Alle Einträge sind bereits geprüft – deren Fotoauswahl bleibt unverändert.", "Fotos auswählen");
+            return;
+        }
+        var scope = _project.Year is { } year ? $"aus {year} " : string.Empty;
+        if (MessageBox.Show(this,
+                $"Für {open.Count} ungeprüfte Einträge {scope}die Fotos neu auswählen?\n\n" +
+                $"Höchstens {_project.MaxPhotosPerEntry} je Eintrag, Serienbilder werden zusammengefasst, Titelbilder bleiben. " +
+                "Die bisherige Auswahl dieser Einträge wird ersetzt; geprüfte Einträge bleiben unverändert.",
+                "Fotos automatisch auswählen", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+            return;
+        try
+        {
+            await AutoSelectPhotosAsync(open, _project.MaxPhotosPerEntry);
+        }
+        catch (Exception ex)
+        {
+            SetBuildProgress(false, "Fotoauswahl fehlgeschlagen.");
+            MessageBox.Show(this, ex.Message, "Fotoauswahl fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task AutoSelectPhotosAsync(IReadOnlyList<EntryModel> entries, int max)
+    {
+        SetBuildProgress(true, "Fotos werden ausgewählt...");
+        var plans = await PhotoSelection.PlanAllAsync(entries, max, CreateProgress());
+        foreach (var (entry, selected) in plans)
+            PhotoSelection.Apply(entry, selected.ToHashSet());
+        _dirty = true; // auch neu berechnete Fingerabdrücke speichern
+        ShowEntry(_currentEntry);
+        var before = entries.Sum(en => en.Images.Count);
+        SetBuildProgress(false, $"Fotos ausgewählt: {plans.Sum(p => p.Selected.Count)} von {before} in {entries.Count} Einträgen.");
+    }
+
+    private void MarkAllDone_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null) return;
+        var open = _project.BookEntries.Count(en => !en.Done);
+        if (open == 0) return;
+        if (MessageBox.Show(this, $"{open} Einträge als geprüft markieren?", "Alle als geprüft markieren",
+                MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+            return;
+        MarkDone(_project.BookEntries);
+    }
+
+    private void MarkDone(IEnumerable<EntryModel> entries)
+    {
+        var count = 0;
+        foreach (var entry in entries.Where(en => !en.Done))
+        {
+            entry.Done = true;
+            count++;
+        }
+        ShowEntry(_currentEntry);
+        StatusText.Text = $"{count} Einträge als geprüft markiert.";
+    }
 
     /// <summary>Druckversion mit Umschlag erzeugen und beides mit Druckinfo in einen Paketordner legen.</summary>
     private async void PrintPackage_Click(object sender, RoutedEventArgs e)

@@ -22,6 +22,9 @@ public class ImageItem : INotifyPropertyChanged
 
     public string FileName => Path.GetFileName(RelativePath);
 
+    /// <summary>Bild-Fingerabdruck (dHash, hex) für die automatische Auswahl – wird einmal berechnet und gespeichert.</summary>
+    public string? Fingerprint { get; set; }
+
     public bool Selected
     {
         get => _selected;

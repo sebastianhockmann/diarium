@@ -113,6 +113,7 @@ public static class DiariumImporter
                     image.IsHero = oldImage.IsHero;
                     image.Caption = oldImage.Caption;
                     image.Order = oldImage.Order;
+                    image.Fingerprint = oldImage.Fingerprint;
                 }
                 else
                 {

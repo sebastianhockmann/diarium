@@ -1,6 +1,18 @@
 # Handoff – DiariumBookStudio
 
-Stand: 2026-11-04 · Version v26
+Stand: 2026-11-04 · Version v27
+
+**Erledigt in v27:** Assistent „Jahresbuch“ (`YearbookWindow`), automatische Fotoauswahl
+(`Services/PhotoSelection.cs`), „Alle als geprüft markieren“, Testprojekt mit 53 Tests (alle grün).
+Erkenntnisse aus dem echten Export (Diarium_2026-10-01, 1552 Fotos):
+- Fotos haben **keine EXIF-Daten** (auch kein Aufnahmedatum) und sind 1600 × 1200 px.
+- Die Reihenfolge im Export ist **nicht chronologisch**; die Kamera-Bildnummer (IMG_####, 1531 von 1552)
+  stellt sie wieder her. `CaptureOrder` fällt auf die Exportreihenfolge zurück, wenn ein Name keine Nummer hat.
+- Fingerabdruck dHash 64 Bit; Schwelle 10 Bit am Kontaktbogen geprüft: bis 10 nur echte Duplikate,
+  ab 14 werden verschiedene Motive vermischt. 58 Fotos werden zusammengefasst; Laufzeit ca. 30 s.
+- Sichtprüfung am Eintrag mit 145 Fotos: Auswahl deckt den Tagesverlauf ab (Zug, Museum, Arena, Konzert, Hotel).
+Nicht getestet: der Assistent als Ganzes per Klick in der App (Einzelteile sind getestet).
+Offen bei Tests: Importer (HTML-Parsing) – braucht eine kleine Beispiel-HTML als Testdatei.
 
 **Erledigt in v26:** Knopf „Druckpaket“ (`Services/PrintPackage.cs`): Innenteil + Umschlag + `Druckinfo.txt`
 (Produkt, Maße, Bestellschritte, offene Hinweise) in einem Ordner. Getestet mit Platzhalter-PDFs und
@@ -149,7 +161,9 @@ Design komplett in `diarybook.sty` steckt:
    offen: weitere Profile bei Bedarf (z. B. epubli, Lulu Hardcover).
 5. Vorlagenauswahl (2–3 Vorlagen). *(mittel)*
 6. Lulu-API-Anbindung mit Kostenabfrage und Bestellung (Sandbox zuerst). *(groß)*
-7. Unit-Tests für Importer, Escaping und Galerie-Layout; schrittweise Logik aus `MainWindow` herauslösen.
+7. Unit-Tests *(Grundstock in v27: Escaping, Galerie, Druckprofil, Fotoauswahl, Vorabprüfung)*;
+   offen: Importer-Tests, Logik schrittweise aus `MainWindow` herauslösen.
+8. Weniger Handarbeit *(erledigt in v27: Assistent, Fotoauswahl, alle als geprüft markieren)*.
 
 ## Wichtige Dateien
 
@@ -160,6 +174,9 @@ Design komplett in `diarybook.sty` steckt:
 - `Services/PrintProfiles.cs` – Druckerei-Profile (Lulu), Satzspiegel, Rückenbreite, Bundsteg
 - `Services/CoverExporter.cs` + `Templates/diarycover.sty` – Buchumschlag
 - `Services/PrintPackage.cs` – Druckpaket mit Bestellanleitung
+- `Services/PhotoSelection.cs` – automatische Fotoauswahl (Aufnahmereihenfolge, Duplikate, Verteilung)
+- `YearbookWindow.xaml(.cs)` – Assistent „Jahresbuch drucken“
+- `DiariumBookStudio.Tests/` – Unit-Tests (`dotnet test`)
 - `Services/Preflight.cs` + `PreflightWindow` – Vorabprüfung
 - `Services/GalleryLayout.cs` – Fotoreihen im Blocksatz
 - `Services/MapService.cs` – OSM-Karten, Kachel-Cache, Reverse-Geocoding
