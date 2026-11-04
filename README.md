@@ -241,3 +241,14 @@ Fehlerbehebungen:
 - Keine Initiale bei sehr kurzen Texten (sie ragte sonst in die Fotos).
 - Vorschaubilder in der App werden verkleinert geladen und die Bilderliste ist virtualisiert –
   wichtig bei Einträgen mit über 100 Fotos.
+
+
+## Version 23 (2026-11-04)
+
+- Autospeichern: Änderungen werden nach spätestens 5 Sekunden gespeichert, außerdem beim Beenden
+  und vor dem Öffnen/Importieren eines anderen Projekts. Schlägt das Speichern fehl, fragt die App nach.
+- Projektdatei wird über eine temporäre Datei geschrieben und kann bei einem Abbruch nicht beschädigt werden.
+- Strg+S speichert das Projekt.
+- Rechtschreibprüfung (Deutsch) im Tagebuchtext und in den Bildunterschriften; Korrekturvorschläge per Rechtsklick.
+- Formatierung: Strg+B / Strg+I bzw. Knöpfe „F“ und „K“ setzen oder entfernen **fett** und *kursiv*,
+  „• Liste“ macht markierte Zeilen zur Liste.

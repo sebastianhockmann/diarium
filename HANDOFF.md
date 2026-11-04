@@ -1,6 +1,10 @@
 # Handoff – DiariumBookStudio
 
-Stand: 2026-11-04 · Version v22 (Commit `21ac0a6` + diese Datei)
+Stand: 2026-11-04 · Version v23
+
+**Erledigt in v23 (Schritt 1 der Reihenfolge unten):** Autospeichern (5 s, beim Beenden und vor
+Projektwechsel, Rückfrage nur bei Fehler), atomares Speichern, Strg+S, Rechtschreibprüfung de-DE
+(Text, Bildunterschriften), Strg+B/Strg+I und Knöpfe für fett/kursiv/Liste. Risiko 1 ist damit behoben.
 
 ## Ziel
 
@@ -30,8 +34,7 @@ Entwicklungsrechner installiert.
 
 ### Schwächen und Risiken
 
-1. **Kein Autospeichern und keine Rückfrage beim Schließen** – ungespeicherte Bearbeitungen gehen
-   beim Beenden verloren (es gibt keinen `Closing`-Handler). Höchste Priorität, kleiner Aufwand.
+1. ~~**Kein Autospeichern und keine Rückfrage beim Schließen**~~ – behoben in v23.
 2. **Kein Umschlag** – Druckereien verlangen ein separates Umschlag-PDF (Rückseite + Rücken + Vorderseite),
    dessen Rückenbreite von Seitenzahl und Papier abhängt. Ohne Umschlag ist keine automatische Bestellung möglich.
 3. **Keine Druck-Vorabprüfung** – keine Warnung bei zu niedriger Bildauflösung (< ~200 dpi in Druckgröße),
@@ -101,7 +104,7 @@ Design komplett in `diarybook.sty` steckt:
 
 ## Vorgeschlagene Reihenfolge
 
-1. Autospeichern + Rückfrage beim Schließen; Rechtschreibprüfung; Strg+B/Strg+I. *(klein)*
+1. ~~Autospeichern + Rückfrage beim Schließen; Rechtschreibprüfung; Strg+B/Strg+I.~~ *(erledigt in v23)*
 2. Vorabprüfung (Auflösung, fehlende Bilder, ungeprüfte Einträge) als Dialog vor der PDF-Erzeugung. *(mittel)*
 3. Umschlag-PDF mit berechneter Rückenbreite. *(mittel)*
 4. Druckerei-Profile, Button „Druckfertiges Paket“. *(mittel)*

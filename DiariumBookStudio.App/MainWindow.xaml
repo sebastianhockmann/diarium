@@ -3,10 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:DiariumBookStudio.Models"
         xmlns:local="clr-namespace:DiariumBookStudio"
-        Title="Diarium Book Studio v22" Height="820" Width="1350" MinHeight="650" MinWidth="1100">
+        Title="Diarium Book Studio v23" Height="820" Width="1350" MinHeight="650" MinWidth="1100"
+        Closing="Window_Closing">
     <Window.Resources>
         <local:ThumbnailConverter x:Key="Thumbnail" DecodePixelWidth="240" />
     </Window.Resources>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Save" Executed="SaveCommand_Executed" />
+    </Window.CommandBindings>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Datei">
@@ -14,7 +18,7 @@
                 <MenuItem Header="Entpackten Diarium-Ordner importieren..." Click="ImportFolder_Click" />
                 <MenuItem Header="Projekt öffnen..." Click="OpenProject_Click" />
                 <Separator />
-                <MenuItem Header="Projekt speichern" Click="SaveProject_Click" />
+                <MenuItem Header="Projekt speichern" Click="SaveProject_Click" InputGestureText="Strg+S" />
                 <MenuItem Header="LaTeX erzeugen unter..." Click="ExportLatex_Click" />
                 <Separator />
                 <MenuItem Header="Beenden" Click="Exit_Click" />
@@ -41,7 +45,7 @@
                         <TextBlock Text="Öffnen" />
                     </StackPanel>
                 </Button>
-                <Button ToolTip="Projekt speichern" Click="SaveProject_Click" Padding="8,4" Margin="2">
+                <Button ToolTip="Projekt speichern (Strg+S). Änderungen werden auch automatisch gespeichert." Click="SaveProject_Click" Padding="8,4" Margin="2">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="💾" Margin="0,0,5,0" />
                         <TextBlock Text="Speichern" />
@@ -146,10 +150,18 @@
                             <TextBox x:Name="PlaceNameBox" Width="260" Padding="3" TextChanged="PlaceNameBox_TextChanged"
                                      ToolTip="Wird beim Export automatisch aus den Koordinaten ermittelt, falls leer." />
                         </StackPanel>
-                        <TextBlock Text="Formatierung: **fett**, *kursiv*, Zeilen mit „- “ werden zur Liste." Foreground="Gray" FontSize="11" Margin="0,6,0,0" />
                         <CheckBox x:Name="DoneCheckBox" Content="Eintrag für das Buch geprüft" Margin="0,8,0,0" Checked="DoneCheckBox_Changed" Unchecked="DoneCheckBox_Changed" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="F" FontWeight="Bold" Width="28" Margin="0,0,3,0" Click="BoldButton_Click" ToolTip="Fett (Strg+B)" />
+                            <Button Content="K" FontStyle="Italic" Width="28" Margin="0,0,3,0" Click="ItalicButton_Click" ToolTip="Kursiv (Strg+I)" />
+                            <Button Content="• Liste" Padding="6,0" Margin="0,0,10,0" Click="ListButton_Click" ToolTip="Markierte Zeilen als Liste (Zeilen mit „- “)" />
+                            <TextBlock Text="Schreibweise: **fett**, *kursiv*, Zeilen mit „- “ werden zur Liste. Rechtsklick auf rot unterstrichene Wörter für Korrekturvorschläge."
+                                       Foreground="Gray" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" />
+                        </StackPanel>
                     </StackPanel>
-                    <TextBox x:Name="EditedTextBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="14" TextChanged="EditedTextBox_TextChanged" />
+                    <TextBox x:Name="EditedTextBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontSize="14"
+                             SpellCheck.IsEnabled="True" Language="de-DE"
+                             TextChanged="EditedTextBox_TextChanged" PreviewKeyDown="EditedTextBox_PreviewKeyDown" />
                 </DockPanel>
             </GroupBox>
 
@@ -195,7 +207,8 @@
                                                     <Button Content="↑" Width="28" Margin="0,0,3,0" Click="MoveImageUp_Click" />
                                                     <Button Content="↓" Width="28" Click="MoveImageDown_Click" />
                                                 </StackPanel>
-                                                <TextBox Text="{Binding Caption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0" Padding="4" ToolTip="Bildunterschrift" />
+                                                <TextBox Text="{Binding Caption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0" Padding="4" ToolTip="Bildunterschrift"
+                                                         SpellCheck.IsEnabled="True" Language="de-DE" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>

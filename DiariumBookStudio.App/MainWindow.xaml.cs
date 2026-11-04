@@ -12,24 +12,94 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.ComponentModel;
+using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v22";
+    public string AppVersion { get; } = "DiariumBookStudio v23";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
     private bool _updatingUi;
     private EntryModel? _currentEntry;
 
+    // Ungespeicherte Änderungen. Wird auch vom Export-Thread gesetzt (Ortsnamen), daher volatile.
+    private volatile bool _dirty;
+    private bool _isBuilding;
+    private readonly DispatcherTimer _autosaveTimer = new() { Interval = TimeSpan.FromSeconds(5) };
+
     public MainWindow()
     {
         InitializeComponent();
         DataContext = this;
         EntryTree.ItemsSource = _visibleMonths;
+        _autosaveTimer.Tick += (_, _) =>
+        {
+            if (_dirty && !_isBuilding) TrySave(automatic: true);
+        };
+        _autosaveTimer.Start();
+    }
+
+    /// <summary>Setzt das aktuelle Projekt und beobachtet Änderungen an Einträgen und Bildern fürs Autospeichern.</summary>
+    private void AttachProject(BookProject project)
+    {
+        _project = project;
+        foreach (var entry in project.Entries)
+        {
+            entry.PropertyChanged += (_, _) => _dirty = true;
+            foreach (var image in entry.Images)
+                image.PropertyChanged += (_, _) => _dirty = true;
+        }
+        _dirty = false;
+        ShowProjectSettings();
+        RefreshEntryTree();
+    }
+
+    private bool TrySave(bool automatic)
+    {
+        if (_project is null) return true;
+        _dirty = false;
+        try
+        {
+            _project.Save();
+            StatusText.Text = automatic
+                ? $"Automatisch gespeichert ({DateTime.Now:HH:mm:ss})."
+                : $"Projekt gespeichert: {_project.ProjectFile}";
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _dirty = true;
+            if (automatic)
+                StatusText.Text = $"Automatisches Speichern fehlgeschlagen: {ex.Message}";
+            else
+                MessageBox.Show(this, ex.Message, "Speichern fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
+    }
+
+    /// <summary>Speichert vor dem Wechsel zu einem anderen Projekt. false: Wechsel abbrechen.</summary>
+    private bool SaveBeforeSwitch()
+    {
+        if (!_dirty || TrySave(automatic: true)) return true;
+        return MessageBox.Show(this,
+            "Das geöffnete Projekt konnte nicht gespeichert werden. Trotzdem fortfahren? Ungespeicherte Änderungen gehen verloren.",
+            "Speichern fehlgeschlagen", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+    }
+
+    private void Window_Closing(object? sender, CancelEventArgs e)
+    {
+        if (!_dirty || TrySave(automatic: true)) return;
+        var answer = MessageBox.Show(this,
+            "Das Projekt konnte nicht gespeichert werden. Trotzdem beenden? Ungespeicherte Änderungen gehen verloren.",
+            "Speichern fehlgeschlagen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) e.Cancel = true;
     }
 
     private void ImportZip_Click(object sender, RoutedEventArgs e)
@@ -78,11 +148,9 @@ public partial class MainWindow : Window
                 $"Nein: Neues Projekt unter\n{projectRoot}",
                 "Import", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
             if (answer == MessageBoxResult.Cancel) return;
+            if (!SaveBeforeSwitch()) return;
             if (answer == MessageBoxResult.Yes)
-            {
-                _project.Save();
                 projectRoot = _project.ProjectRoot;
-            }
         }
 
         if (projectRoot != _project?.ProjectRoot && File.Exists(Path.Combine(projectRoot, "diarium-book-project.json")))
@@ -97,10 +165,9 @@ public partial class MainWindow : Window
 
         try
         {
-            _project = import(projectRoot);
-            ShowProjectSettings();
-            RefreshEntryTree();
-            StatusText.Text = $"Import fertig: {_project.Entries.Count} Einträge. Projekt: {_project.ProjectFile}";
+            var project = import(projectRoot);
+            AttachProject(project);
+            StatusText.Text = $"Import fertig: {project.Entries.Count} Einträge. Projekt: {project.ProjectFile}";
         }
         catch (Exception ex)
         {
@@ -116,13 +183,13 @@ public partial class MainWindow : Window
             Filter = "Projektdatei (diarium-book-project.json)|diarium-book-project.json|JSON (*.json)|*.json|Alle Dateien (*.*)|*.*"
         };
         if (openDialog.ShowDialog() != true) return;
+        if (!SaveBeforeSwitch()) return;
 
         try
         {
-            _project = BookProject.Load(openDialog.FileName);
-            ShowProjectSettings();
-            RefreshEntryTree();
-            StatusText.Text = $"Projekt geöffnet: {_project.ProjectFile}";
+            var project = BookProject.Load(openDialog.FileName);
+            AttachProject(project);
+            StatusText.Text = $"Projekt geöffnet: {project.ProjectFile}";
         }
         catch (Exception ex)
         {
@@ -130,12 +197,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SaveProject_Click(object sender, RoutedEventArgs e)
-    {
-        if (_project is null) return;
-        _project.Save();
-        StatusText.Text = $"Projekt gespeichert: {_project.ProjectFile}";
-    }
+    private void SaveProject_Click(object sender, RoutedEventArgs e) => TrySave(automatic: false);
+
+    private void SaveCommand_Executed(object sender, ExecutedRoutedEventArgs e) => TrySave(automatic: false);
 
     private async void ExportLatex_Click(object sender, RoutedEventArgs e)
     {
@@ -163,7 +227,7 @@ public partial class MainWindow : Window
         {
             SetBuildProgress(true, "Erzeuge LaTeX-Datei und Karten...");
             var texPath = await LatexExporter.ExportAsync(_project, saveDialog.FileName, CreateProgress());
-            _project.Save();
+            TrySave(automatic: true);
             ShowEntry(_currentEntry);
             SetBuildProgress(false, $"LaTeX erzeugt: {texPath}");
             MessageBox.Show(this, $"LaTeX wurde erzeugt:\n{texPath}\n\nMit LuaLaTeX kompilieren.", "Fertig", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -196,7 +260,7 @@ public partial class MainWindow : Window
         {
             SetBuildProgress(true, "Erzeuge LaTeX-Datei und Karten...");
             await LatexExporter.ExportAsync(_project, texPath, CreateProgress());
-            _project.Save();
+            TrySave(automatic: true);
             ShowEntry(_currentEntry);
 
             SetBuildProgress(true, "Starte LuaLaTeX, Lauf 1 von 2...");
@@ -283,6 +347,8 @@ public partial class MainWindow : Window
 
     private void SetBuildProgress(bool isRunning, string message)
     {
+        // Während des Exports kein Autospeichern: der Export-Thread ergänzt gerade Ortsnamen.
+        _isBuilding = isRunning;
         StatusText.Text = message;
         BuildProgressBar.Visibility = isRunning ? Visibility.Visible : Visibility.Collapsed;
         System.Windows.Input.Mouse.OverrideCursor = isRunning ? System.Windows.Input.Cursors.Wait : null;
@@ -425,12 +491,14 @@ public partial class MainWindow : Window
         _project.BookSubtitle = BookSubtitleBox.Text;
         _project.PrintVersion = PrintVersionCheckBox.IsChecked == true;
         _project.GrayAccents = GrayAccentsCheckBox.IsChecked == true;
+        _dirty = true;
     }
 
     private void YearComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingUi || _project is null) return;
         _project.Year = YearComboBox.SelectedItem as int?;
+        _dirty = true;
         RefreshEntryTree();
         StatusText.Text = _project.Year is { } year
             ? $"Buch enthält nur Einträge aus {year} ({_project.BookEntries.Count()} Einträge)."
@@ -486,7 +554,105 @@ public partial class MainWindow : Window
         (ordered[index + 1].Order, ordered[index].Order) = (ordered[index].Order, ordered[index + 1].Order);
         ShowEntry(entry);
     }
-private static string BuildEntryMeta(EntryModel entry)
+
+    private void EditedTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers != ModifierKeys.Control) return;
+        if (e.Key == Key.B) { ToggleMarkup("**"); e.Handled = true; }
+        else if (e.Key == Key.I) { ToggleMarkup("*"); e.Handled = true; }
+    }
+
+    private void BoldButton_Click(object sender, RoutedEventArgs e) => ToggleMarkup("**");
+    private void ItalicButton_Click(object sender, RoutedEventArgs e) => ToggleMarkup("*");
+    private void ListButton_Click(object sender, RoutedEventArgs e) => ToggleList();
+
+    /// <summary>
+    /// Schließt die Markierung in **…** bzw. *…* ein oder entfernt die Auszeichnung wieder.
+    /// Mehrzeilige Markierungen werden zeilenweise ausgezeichnet (LatexText.Inline arbeitet pro Zeile).
+    /// </summary>
+    private void ToggleMarkup(string marker)
+    {
+        if (CurrentEntry is null) return;
+        var box = EditedTextBox;
+        var text = box.Text;
+        var start = box.SelectionStart;
+        var end = start + box.SelectionLength;
+        // Leerzeichen am Rand nicht einschließen, sonst erkennt LatexText die Auszeichnung nicht.
+        while (start < end && char.IsWhiteSpace(text[start])) start++;
+        while (end > start && char.IsWhiteSpace(text[end - 1])) end--;
+
+        if (start == end)
+        {
+            box.Select(box.SelectionStart, 0);
+            var caret = box.SelectionStart;
+            box.SelectedText = marker + marker;
+            box.Select(caret + marker.Length, 0);
+        }
+        else
+        {
+            // „***x***“ ist fett und kursiv: Sternchen auf beiden Seiten zählen.
+            var left = CountStars(text, start - 1, -1);
+            var right = CountStars(text, end, 1);
+            var isWrapped = marker == "**" ? left >= 2 && right >= 2 : left % 2 == 1 && right % 2 == 1;
+            var inner = text[start..end];
+
+            if (isWrapped)
+            {
+                box.Select(start - marker.Length, inner.Length + 2 * marker.Length);
+                box.SelectedText = inner;
+                box.Select(start - marker.Length, inner.Length);
+            }
+            else
+            {
+                var wrapped = Regex.Replace(inner, @"(?m)^(?<lead>[ \t]*(?:[-•][ \t]+)?)(?<body>[^\r\n]*?)(?<trail>[ \t]*)(?=\r?$)",
+                    m => m.Groups["body"].Length == 0 ? m.Value : m.Groups["lead"].Value + marker + m.Groups["body"].Value + marker + m.Groups["trail"].Value);
+                box.Select(start, inner.Length);
+                box.SelectedText = wrapped;
+                if (inner.Contains('\n'))
+                    box.Select(start, wrapped.Length);
+                else
+                    box.Select(start + marker.Length, inner.Length);
+            }
+        }
+        box.Focus();
+    }
+
+    private static int CountStars(string text, int index, int step)
+    {
+        var count = 0;
+        for (; index >= 0 && index < text.Length && text[index] == '*'; index += step) count++;
+        return count;
+    }
+
+    /// <summary>Macht die markierten Zeilen zur Liste („- “) oder hebt die Liste wieder auf.</summary>
+    private void ToggleList()
+    {
+        if (CurrentEntry is null) return;
+        var box = EditedTextBox;
+        var text = box.Text;
+        var start = box.SelectionStart == 0 ? 0 : text.LastIndexOf('\n', box.SelectionStart - 1) + 1;
+        var selectionEnd = box.SelectionStart + box.SelectionLength;
+        // Endet die Markierung direkt am Zeilenanfang, gehört diese Zeile nicht dazu.
+        if (box.SelectionLength > 0 && selectionEnd > start && text[selectionEnd - 1] == '\n') selectionEnd--;
+        var end = text.IndexOf('\n', selectionEnd);
+        if (end < 0) end = text.Length;
+
+        var lines = text[start..end].Split('\n');
+        var listItem = new Regex(@"^[ \t]*[-•][ \t]+");
+        var nonEmpty = lines.Where(l => l.Trim().Length > 0).ToList();
+        var isList = nonEmpty.Count > 0 && nonEmpty.All(l => listItem.IsMatch(l));
+        var changed = string.Join("\n", lines.Select(l =>
+            l.Trim().Length == 0 ? l
+            : isList ? listItem.Replace(l, string.Empty)
+            : listItem.IsMatch(l) ? l : "- " + l.TrimStart()));
+
+        box.Select(start, end - start);
+        box.SelectedText = changed;
+        box.Select(start, changed.Length);
+        box.Focus();
+    }
+
+    private static string BuildEntryMeta(EntryModel entry)
     {
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(entry.Location))

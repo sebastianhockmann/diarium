@@ -56,7 +56,11 @@ public class BookProject
             WriteIndented = true,
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         });
-        File.WriteAllText(ProjectFile, json);
+        // Erst in eine temporäre Datei schreiben: Bricht das (automatische) Speichern ab,
+        // bleibt die bisherige Projektdatei unbeschädigt.
+        var tempFile = ProjectFile + ".tmp";
+        File.WriteAllText(tempFile, json);
+        File.Move(tempFile, ProjectFile, overwrite: true);
     }
 
     public static BookProject Load(string projectFile)
