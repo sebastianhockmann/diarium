@@ -1,6 +1,14 @@
 # Handoff – DiariumBookStudio
 
-Stand: 2026-11-04 · Version v25
+Stand: 2026-11-04 · Version v26
+
+**Erledigt in v26:** Knopf „Druckpaket“ (`Services/PrintPackage.cs`): Innenteil + Umschlag + `Druckinfo.txt`
+(Produkt, Maße, Bestellschritte, offene Hinweise) in einem Ordner. Getestet mit Platzhalter-PDFs und
+echten Projektdaten; der PDF-Ablauf selbst ist unverändert gegenüber dem v25-Test.
+**Nächster Schritt (Nutzer):** mit dem Paket ein Probeexemplar bei Lulu bestellen und prüfen
+(Farben, Papier, Bundsteg, Umschlagsitz) sowie einen Lulu-Sandbox-Entwicklerzugang anlegen.
+**Nächster Schritt (Entwicklung), parallel:** weniger Handarbeit pro Jahr (Foto-Vorauswahl,
+„alle als geprüft markieren“, Assistent „Jahresbuch drucken…“) und Unit-Tests.
 
 **Erledigt in v25 (Schritte 3 und 4 zum Teil):** Druckerei-Profil und Buchumschlag.
 - Gewählte Druckerei: **Lulu**, Profil `lulu-a5-pb-premium` (A5-Taschenbuch, Premium-Farbe, 80# gestrichen,
@@ -137,8 +145,8 @@ Design komplett in `diarybook.sty` steckt:
 1. ~~Autospeichern + Rückfrage beim Schließen; Rechtschreibprüfung; Strg+B/Strg+I.~~ *(erledigt in v23)*
 2. ~~Vorabprüfung (Auflösung, fehlende Bilder, ungeprüfte Einträge) als Dialog vor der PDF-Erzeugung.~~ *(erledigt in v24)*
 3. ~~Umschlag-PDF mit berechneter Rückenbreite.~~ *(erledigt in v25)*
-4. Druckerei-Profile *(Grundlage und Lulu-Profil erledigt in v25)*; offen: weitere Profile (z. B. epubli,
-   Lulu Hardcover) und Button „Druckfertiges Paket“ (Innenteil + Umschlag + Infodatei in einem Ordner/ZIP). *(klein)*
+4. Druckerei-Profile *(Grundlage und Lulu-Profil erledigt in v25)*, Button „Druckpaket“ *(erledigt in v26)*;
+   offen: weitere Profile bei Bedarf (z. B. epubli, Lulu Hardcover).
 5. Vorlagenauswahl (2–3 Vorlagen). *(mittel)*
 6. Lulu-API-Anbindung mit Kostenabfrage und Bestellung (Sandbox zuerst). *(groß)*
 7. Unit-Tests für Importer, Escaping und Galerie-Layout; schrittweise Logik aus `MainWindow` herauslösen.
@@ -151,6 +159,7 @@ Design komplett in `diarybook.sty` steckt:
 - `Services/ImageExport.cs` – Fotos lesen, drehen, auf Druckgröße verkleinern (Cache)
 - `Services/PrintProfiles.cs` – Druckerei-Profile (Lulu), Satzspiegel, Rückenbreite, Bundsteg
 - `Services/CoverExporter.cs` + `Templates/diarycover.sty` – Buchumschlag
+- `Services/PrintPackage.cs` – Druckpaket mit Bestellanleitung
 - `Services/Preflight.cs` + `PreflightWindow` – Vorabprüfung
 - `Services/GalleryLayout.cs` – Fotoreihen im Blocksatz
 - `Services/MapService.cs` – OSM-Karten, Kachel-Cache, Reverse-Geocoding

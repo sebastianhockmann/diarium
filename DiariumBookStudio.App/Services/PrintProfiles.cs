@@ -61,7 +61,10 @@ public sealed record PrintProfile(
     // Rückenbreite in mm in Abhängigkeit von der Seitenzahl
     Func<int, double> SpineWidth,
     // Empfohlener Bundsteg (Innenrand) in mm in Abhängigkeit von der Seitenzahl
-    Func<int, double> InnerMargin)
+    Func<int, double> InnerMargin,
+    // Seite für das manuelle Hochladen und die Produktauswahl dort (für die Druckinfo im Paket)
+    string OrderUrl,
+    IReadOnlyList<string> ProductOptions)
 {
     public override string ToString() => Name;
 
@@ -123,6 +126,15 @@ public static class PrintProfiles
             <= 400 => 1.0 * Inch,
             <= 600 => 1.125 * Inch,
             _ => 1.25 * Inch
+        },
+        OrderUrl: "https://www.lulu.com/create/print-books",
+        ProductOptions: new[]
+        {
+            "Buchformat: A5 (5.83 × 8.27 in / 148 × 210 mm)",
+            "Bindung: Taschenbuch / Paperback (Perfect Bound)",
+            "Innenteil: Premium Color",
+            "Papier: 80# White – Coated",
+            "Umschlag: Matt (Matte)"
         });
 
     public static IReadOnlyList<PrintProfile> All { get; } = new[] { LuluA5Paperback };

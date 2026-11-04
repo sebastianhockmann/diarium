@@ -22,7 +22,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v25";
+    public string AppVersion { get; } = "DiariumBookStudio v26";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
@@ -239,7 +239,26 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void GeneratePdf_Click(object sender, RoutedEventArgs e)
+    private async void GeneratePdf_Click(object sender, RoutedEventArgs e) => await BuildBookAsync(package: false);
+
+    /// <summary>Druckversion mit Umschlag erzeugen und beides mit Druckinfo in einen Paketordner legen.</summary>
+    private async void PrintPackage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null)
+        {
+            MessageBox.Show(this, "Bitte zuerst eine Diarium-ZIP importieren oder ein Projekt öffnen.");
+            return;
+        }
+        if (!_project.PrintVersion)
+        {
+            PrintVersionCheckBox.IsChecked = true; // setzt über BookSettings_Changed auch das Projekt
+            StatusText.Text = "Druckversion eingeschaltet.";
+        }
+        await BuildBookAsync(package: true);
+    }
+
+    /// <param name="package">true: Ergebnis als Druckpaket (Ordner mit PDFs und Druckinfo) ablegen.</param>
+    private async Task BuildBookAsync(bool package)
     {
         if (_project is null)
         {
@@ -300,20 +319,41 @@ public partial class MainWindow : Window
             TrySave(automatic: true);
 
             var (coverWidth, coverHeight, spine) = profile.CoverSize(pages);
-            var summary = new StringBuilder()
-                .AppendLine($"Druckdateien für {profile.Name}:")
-                .AppendLine()
-                .AppendLine($"Innenteil: {Path.GetFileName(pdfPath)} – {pages} Seiten")
-                .AppendLine($"Umschlag: {Path.GetFileName(coverPath)} – {coverWidth:0.0} × {coverHeight:0.0} mm, Buchrücken {spine:0.0} mm");
+            var problems = new List<(string Symbol, string Message)>();
             if (profile.CheckPageCount(pages) is { } pageProblem)
-                summary.AppendLine().AppendLine("⚠ " + pageProblem);
-            foreach (var issue in coverReport.Issues)
-                summary.AppendLine().Append(issue.Severity == PreflightSeverity.Hinweis ? "ℹ " : "⚠ ").AppendLine(issue.Message);
+                problems.Add(("⚠", pageProblem));
+            problems.AddRange(coverReport.Issues.Select(i => (i.Severity == PreflightSeverity.Hinweis ? "ℹ" : "⚠", i.Message)));
 
-            SetBuildProgress(false, $"Druckdateien erzeugt: {pages} Seiten, Umschlag {coverWidth:0.0} × {coverHeight:0.0} mm – Vorabprüfung: {report.Summary}");
-            OpenFile(pdfPath);
-            OpenFile(coverPath);
-            MessageBox.Show(this, summary.ToString(), "Druckdateien erzeugt", MessageBoxButton.OK, MessageBoxImage.Information);
+            string? packageFolder = null;
+            if (package)
+            {
+                var notes = problems.Select(p => p.Message).ToList();
+                var notReviewed = report.Issues.Count(i => i.Message.Contains("geprüft"));
+                if (notReviewed > 0) notes.Add($"{notReviewed} Einträge sind noch nicht als geprüft markiert.");
+                packageFolder = PrintPackage.Create(_project, profile, pages, pdfPath, coverPath, outputDir, notes);
+            }
+
+            var summary = new StringBuilder()
+                .AppendLine(package ? $"Druckpaket für {profile.Name}:" : $"Druckdateien für {profile.Name}:")
+                .AppendLine()
+                .AppendLine($"Innenteil: {pages} Seiten")
+                .AppendLine($"Umschlag: {coverWidth:0.0} × {coverHeight:0.0} mm, Buchrücken {spine:0.0} mm");
+            if (packageFolder is not null)
+                summary.AppendLine().AppendLine($"Ordner: {packageFolder}").AppendLine("Die Schritte zum Bestellen stehen in „Druckinfo.txt“.");
+            foreach (var (symbol, message) in problems)
+                summary.AppendLine().AppendLine($"{symbol} {message}");
+
+            SetBuildProgress(false, $"{(package ? "Druckpaket" : "Druckdateien")} erzeugt: {pages} Seiten, Umschlag {coverWidth:0.0} × {coverHeight:0.0} mm – Vorabprüfung: {report.Summary}");
+            if (packageFolder is not null)
+            {
+                OpenFile(packageFolder);
+            }
+            else
+            {
+                OpenFile(pdfPath);
+                OpenFile(coverPath);
+            }
+            MessageBox.Show(this, summary.ToString(), package ? "Druckpaket erzeugt" : "Druckdateien erzeugt", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {

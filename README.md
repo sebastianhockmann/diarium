@@ -289,3 +289,12 @@ Druckerei-Profil und Buchumschlag:
   die verkleinerten Bilder werden zwischengespeichert. Bildmaße werden nur noch aus dem Dateikopf gelesen.
 - Nach der Erzeugung zeigt die App Seitenzahl, Umschlagmaße und Rückenbreite sowie Probleme
   (z. B. Seitenzahl außerhalb der Grenzen der Druckerei).
+
+
+## Version 26 (2026-11-04)
+
+- Neuer Knopf „Druckpaket“: schaltet bei Bedarf die Druckversion ein, erzeugt Innenteil und Umschlag
+  und legt beides mit sprechenden Namen in `output/Druckpaket_<Titel>_<Datum>/`.
+  Dazu kommt `Druckinfo.txt` mit Produkt, Produktcode, Seitenzahl, Maßen, Schritten zum Hochladen
+  und Bestellen bei der Druckerei sowie offenen Hinweisen (z. B. ungeprüfte Einträge).
+- Die PDFs werden in den Paketordner verschoben, nicht kopiert (sie sind oft über 100 MB groß).
