@@ -1,10 +1,18 @@
 # Handoff – DiariumBookStudio
 
-Stand: 2026-11-04 · Version v23
+Stand: 2026-11-04 · Version v24
 
 **Erledigt in v23 (Schritt 1 der Reihenfolge unten):** Autospeichern (5 s, beim Beenden und vor
 Projektwechsel, Rückfrage nur bei Fehler), atomares Speichern, Strg+S, Rechtschreibprüfung de-DE
 (Text, Bildunterschriften), Strg+B/Strg+I und Knöpfe für fett/kursiv/Liste. Risiko 1 ist damit behoben.
+
+**Erledigt in v24 (Schritt 2):** Vorabprüfung (`Services/Preflight.cs`, `PreflightWindow`). Der Export
+sammelt fehlende/defekte Fotos und die effektive Auflösung in der echten Druckbreite (`GalleryLayout.Render`
+meldet die Breite jedes Fotos per Callback; Satzspiegel 114 × 172 mm als Konstanten in `PreflightReport` –
+bei Layoutänderungen in `diarybook.sty` mitpflegen) sowie ungeprüfte Einträge. Knopf „Prüfen“ und
+automatische Prüfung vor „PDF erzeugen“ (Dialog nur bei Fehlern/Warnungen). Getestet am Projekt
+Diarium_2026-10-01: 233 Hinweise (ungeprüft), keine Auflösungsprobleme. Noch offen aus Risiko 3:
+Seitenzahl-Grenzen der Druckerei – gehört zu den Druckerei-Profilen (Schritt 4).
 
 ## Ziel
 
@@ -15,7 +23,7 @@ im Idealfall per Knopfdruck direkt an einen Druckdienstleister übergeben.
 
 **Reifegrad: funktionsfähiger Prototyp für den Eigengebrauch.** Der Weg
 Import → Prüfen → PDF funktioniert. Für „ein Klick bis zum gedruckten Buch“ fehlen
-Umschlag, Druck-Vorabprüfung und die Anbindung an eine Druckerei.
+Umschlag und die Anbindung an eine Druckerei.
 
 Build: `dotnet build` ohne Warnungen und Fehler (.NET 8, WPF). LuaLaTeX (MiKTeX) ist auf dem
 Entwicklungsrechner installiert.
@@ -37,8 +45,8 @@ Entwicklungsrechner installiert.
 1. ~~**Kein Autospeichern und keine Rückfrage beim Schließen**~~ – behoben in v23.
 2. **Kein Umschlag** – Druckereien verlangen ein separates Umschlag-PDF (Rückseite + Rücken + Vorderseite),
    dessen Rückenbreite von Seitenzahl und Papier abhängt. Ohne Umschlag ist keine automatische Bestellung möglich.
-3. **Keine Druck-Vorabprüfung** – keine Warnung bei zu niedriger Bildauflösung (< ~200 dpi in Druckgröße),
-   fehlenden Bildern (nur in `map_debug.txt`), ungeprüften Einträgen oder Seitenzahl außerhalb der Grenzen der Druckerei.
+3. ~~**Keine Druck-Vorabprüfung**~~ – behoben in v24 (Auflösung, fehlende Bilder, ungeprüfte Einträge);
+   offen ist nur die Seitenzahl-Prüfung gegen die Grenzen der Druckerei.
 4. **Kein PDF/X, Fotos in RGB** – die meisten Digitaldruckereien akzeptieren RGB-PDFs, aber Farbabweichungen
    sind möglich. PDF/X-3/-4 wäre für einige Anbieter Voraussetzung.
 5. **Keine Tests** – Importer (HTML-Parsing, Datumsformate), `LatexText.Escape` und `GalleryLayout` sind gut testbar,
@@ -105,7 +113,7 @@ Design komplett in `diarybook.sty` steckt:
 ## Vorgeschlagene Reihenfolge
 
 1. ~~Autospeichern + Rückfrage beim Schließen; Rechtschreibprüfung; Strg+B/Strg+I.~~ *(erledigt in v23)*
-2. Vorabprüfung (Auflösung, fehlende Bilder, ungeprüfte Einträge) als Dialog vor der PDF-Erzeugung. *(mittel)*
+2. ~~Vorabprüfung (Auflösung, fehlende Bilder, ungeprüfte Einträge) als Dialog vor der PDF-Erzeugung.~~ *(erledigt in v24)*
 3. Umschlag-PDF mit berechneter Rückenbreite. *(mittel)*
 4. Druckerei-Profile, Button „Druckfertiges Paket“. *(mittel)*
 5. Vorlagenauswahl (2–3 Vorlagen). *(mittel)*

@@ -25,12 +25,13 @@ public static class LatexExporter
     /// Führt den Export auf einem eigenen STA-Thread aus (WPF-Rendering der Karten braucht STA),
     /// damit die Oberfläche während Kartendownloads nicht einfriert.
     /// </summary>
-    public static Task<string> ExportAsync(BookProject project, string? outputTexPath = null, IProgress<string>? progress = null)
+    public static Task<string> ExportAsync(BookProject project, string? outputTexPath = null, IProgress<string>? progress = null,
+        PreflightReport? report = null)
     {
         var tcs = new TaskCompletionSource<string>();
         var thread = new Thread(() =>
         {
-            try { tcs.SetResult(Export(project, outputTexPath, progress)); }
+            try { tcs.SetResult(Export(project, outputTexPath, progress, report)); }
             catch (Exception ex) { tcs.SetException(ex); }
         });
         thread.SetApartmentState(ApartmentState.STA);
@@ -39,7 +40,9 @@ public static class LatexExporter
         return tcs.Task;
     }
 
-    public static string Export(BookProject project, string? outputTexPath = null, IProgress<string>? progress = null)
+    /// <param name="report">Sammelt Probleme für die Vorabprüfung (fehlende Bilder, Auflösung, ungeprüfte Einträge).</param>
+    public static string Export(BookProject project, string? outputTexPath = null, IProgress<string>? progress = null,
+        PreflightReport? report = null)
     {
         var texPath = string.IsNullOrWhiteSpace(outputTexPath)
             ? Path.Combine(project.OutputFolder, "book.tex")
@@ -72,6 +75,8 @@ public static class LatexExporter
             throw new InvalidOperationException(project.Year is { } year
                 ? $"Für das Jahr {year} gibt es keine Einträge."
                 : "Das Projekt enthält keine Einträge.");
+        foreach (var notReviewed in entries.Where(e => !e.Done))
+            report?.Add(PreflightSeverity.Hinweis, notReviewed,"Eintrag ist noch nicht als geprüft markiert.");
 
         var tex = new StringBuilder();
         tex.AppendLine("% Automatisch erzeugt mit DiariumBookStudio – Layout siehe diarybook.sty");
@@ -99,7 +104,7 @@ public static class LatexExporter
             foreach (var entry in monthEntries)
             {
                 progress?.Report($"Eintrag {++done} von {entries.Count}: {entry.DisplayTitle}");
-                AppendEntry(monthTex, entry, imageDir, maps, Log);
+                AppendEntry(monthTex, entry, imageDir, maps, Log, report);
             }
 
             tex.AppendLine();
@@ -113,7 +118,8 @@ public static class LatexExporter
         return texPath;
     }
 
-    private static void AppendEntry(StringBuilder tex, EntryModel entry, string imageDir, MapService maps, Action<string> log)
+    private static void AppendEntry(StringBuilder tex, EntryModel entry, string imageDir, MapService maps, Action<string> log,
+        PreflightReport? report)
     {
         var longDate = entry.Date?.ToString("dddd, d. MMMM yyyy", German) ?? entry.DateText;
         var shortDate = entry.Date?.ToString("d. MMMM", German) ?? entry.DateText;
@@ -150,20 +156,26 @@ public static class LatexExporter
 
         if (hero is not null)
         {
-            var heroPhoto = PrepareImage(hero, entry, imageDir, index++, log);
+            var heroPhoto = PrepareImage(hero, entry, imageDir, index++, log, report);
             if (heroPhoto is not null)
+            {
+                // DiaryHero: volle Satzbreite, höchstens 0,42 \textheight hoch.
+                var widthMm = Math.Min(PreflightReport.TextWidthMm, 0.42 * PreflightReport.TextHeightMm * heroPhoto.Aspect);
+                report?.CheckResolution(entry, heroPhoto.SourceName, heroPhoto.PixelWidth, widthMm);
                 tex.AppendLine($"\\DiaryHero{{{heroPhoto.File}}}{{{heroPhoto.Caption}}}");
+            }
         }
 
         tex.AppendLine(LatexText.Body(entry.EditedText, withInitial: true));
 
         var gallery = selected
             .Where(i => !ReferenceEquals(i, hero))
-            .Select(i => PrepareImage(i, entry, imageDir, index++, log))
+            .Select(i => PrepareImage(i, entry, imageDir, index++, log, report))
             .OfType<GalleryPhoto>()
             .ToList();
         if (gallery.Count > 0)
-            tex.Append(GalleryLayout.Render(gallery));
+            tex.Append(GalleryLayout.Render(gallery, (photo, fraction) =>
+                report?.CheckResolution(entry, photo.SourceName, photo.PixelWidth, fraction * PreflightReport.TextWidthMm)));
 
         tex.AppendLine("\\DiaryEntryEnd");
     }
@@ -215,11 +227,13 @@ public static class LatexExporter
     /// Kopiert ein Bild in den Ausgabeordner (eindeutiger Name pro Eintrag) und liest das Seitenverhältnis.
     /// Bilder mit EXIF-Drehung oder Formaten, die LaTeX nicht kennt, werden als JPEG neu geschrieben.
     /// </summary>
-    private static GalleryPhoto? PrepareImage(ImageItem image, EntryModel entry, string imageDir, int index, Action<string> log)
+    private static GalleryPhoto? PrepareImage(ImageItem image, EntryModel entry, string imageDir, int index, Action<string> log,
+        PreflightReport? report)
     {
         if (!File.Exists(image.FullPath))
         {
             log($"Bild fehlt: {image.FullPath}");
+            report?.Add(PreflightSeverity.Fehler, entry, $"Foto {image.FileName} fehlt und wird nicht gedruckt: {image.FullPath}");
             return null;
         }
 
@@ -257,11 +271,12 @@ public static class LatexExporter
             var swap = rotation is 90 or 270;
             double width = swap ? frame.PixelHeight : frame.PixelWidth;
             double height = swap ? frame.PixelWidth : frame.PixelHeight;
-            return new GalleryPhoto("images/" + fileName, width / height, LatexText.Inline(image.Caption ?? string.Empty));
+            return new GalleryPhoto("images/" + fileName, width / height, LatexText.Inline(image.Caption ?? string.Empty), width, image.FileName);
         }
         catch (Exception ex)
         {
             log($"Bild konnte nicht verarbeitet werden: {image.FullPath}: {ex.Message}");
+            report?.Add(PreflightSeverity.Fehler, entry, $"Foto {image.FileName} konnte nicht gelesen werden und wird nicht gedruckt: {ex.Message}");
             return null;
         }
     }

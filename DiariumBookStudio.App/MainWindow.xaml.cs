@@ -22,7 +22,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v23";
+    public string AppVersion { get; } = "DiariumBookStudio v24";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
@@ -258,10 +258,13 @@ public partial class MainWindow : Window
 
         try
         {
-            SetBuildProgress(true, "Erzeuge LaTeX-Datei und Karten...");
-            await LatexExporter.ExportAsync(_project, texPath, CreateProgress());
-            TrySave(automatic: true);
-            ShowEntry(_currentEntry);
+            var report = await ExportWithReportAsync(texPath);
+            // Nur bei Fehlern und Warnungen nachfragen; Hinweise stehen in der Statuszeile.
+            if (report.Issues.Any(i => i.Severity != PreflightSeverity.Hinweis) && !ShowPreflight(report, allowContinue: true))
+            {
+                SetBuildProgress(false, $"PDF-Erzeugung abgebrochen. Vorabprüfung: {report.Summary}");
+                return;
+            }
 
             SetBuildProgress(true, "Starte LuaLaTeX, Lauf 1 von 2...");
             await RunLuaLatexAsync(texPath, jobName);
@@ -272,7 +275,7 @@ public partial class MainWindow : Window
             if (!File.Exists(pdfPath))
                 throw new FileNotFoundException("LuaLaTeX wurde ausgeführt, aber die PDF-Datei wurde nicht erzeugt.", pdfPath);
 
-            SetBuildProgress(false, $"PDF erzeugt: {pdfPath}");
+            SetBuildProgress(false, $"PDF erzeugt: {pdfPath} – Vorabprüfung: {report.Summary}");
             OpenFile(pdfPath);
         }
         catch (Exception ex)
@@ -280,6 +283,73 @@ public partial class MainWindow : Window
             SetBuildProgress(false, "PDF-Erzeugung fehlgeschlagen.");
             MessageBox.Show(this, ex.Message, "PDF-Erzeugung fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>Erzeugt book.tex ohne LuaLaTeX und zeigt alle Auffälligkeiten an.</summary>
+    private async void Preflight_Click(object sender, RoutedEventArgs e)
+    {
+        if (_project is null)
+        {
+            MessageBox.Show(this, "Bitte zuerst eine Diarium-ZIP importieren oder ein Projekt öffnen.");
+            return;
+        }
+
+        var outputDir = Path.Combine(_project.ProjectRoot, "output");
+        Directory.CreateDirectory(outputDir);
+        try
+        {
+            var report = await ExportWithReportAsync(Path.Combine(outputDir, "book.tex"));
+            ShowPreflight(report, allowContinue: false);
+        }
+        catch (Exception ex)
+        {
+            SetBuildProgress(false, "Vorabprüfung fehlgeschlagen.");
+            MessageBox.Show(this, ex.Message, "Vorabprüfung fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task<PreflightReport> ExportWithReportAsync(string texPath)
+    {
+        var report = new PreflightReport();
+        SetBuildProgress(true, "Erzeuge LaTeX-Datei und Karten...");
+        await LatexExporter.ExportAsync(_project!, texPath, CreateProgress(), report);
+        TrySave(automatic: true);
+        ShowEntry(_currentEntry);
+        return report;
+    }
+
+    /// <summary>Zeigt die Vorabprüfung. true: PDF trotzdem erzeugen.</summary>
+    private bool ShowPreflight(PreflightReport report, bool allowContinue)
+    {
+        SetBuildProgress(false, $"Vorabprüfung: {report.Summary}");
+        var window = new PreflightWindow(report, allowContinue) { Owner = this };
+        var proceed = window.ShowDialog() == true;
+        if (window.SelectedEntry is { } entry) SelectEntry(entry);
+        return proceed;
+    }
+
+    /// <summary>Wählt einen Eintrag im Baum aus (z. B. aus der Vorabprüfung).</summary>
+    private void SelectEntry(EntryModel entry)
+    {
+        if (!_visibleMonths.Any(m => m.Entries.Contains(entry)))
+            SearchBox.Text = string.Empty; // Suchfilter aufheben, baut den Baum neu auf
+        var month = _visibleMonths.FirstOrDefault(m => m.Entries.Contains(entry));
+        if (month is null) return;
+
+        EntryTree.UpdateLayout();
+        if (EntryTree.ItemContainerGenerator.ContainerFromItem(month) is TreeViewItem monthItem)
+        {
+            monthItem.IsExpanded = true;
+            monthItem.UpdateLayout();
+            if (monthItem.ItemContainerGenerator.ContainerFromItem(entry) is TreeViewItem entryItem)
+            {
+                entryItem.IsSelected = true;
+                entryItem.BringIntoView();
+                return;
+            }
+        }
+        _currentEntry = entry;
+        ShowEntry(entry);
     }
 
     private void OpenOutputFolder_Click(object sender, RoutedEventArgs e)

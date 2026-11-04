@@ -9,7 +9,9 @@ namespace DiariumBookStudio.Services;
 /// <param name="File">Pfad relativ zur .tex-Datei.</param>
 /// <param name="Aspect">Breite / Höhe.</param>
 /// <param name="Caption">Bereits für LaTeX maskierte Bildunterschrift.</param>
-public sealed record GalleryPhoto(string File, double Aspect, string Caption);
+/// <param name="PixelWidth">Breite in Pixeln (nach EXIF-Drehung), für die Auflösungsprüfung.</param>
+/// <param name="SourceName">Originaldateiname, für Hinweise.</param>
+public sealed record GalleryPhoto(string File, double Aspect, string Caption, double PixelWidth, string SourceName);
 
 /// <summary>
 /// Berechnet ein Fotolayout ohne Beschnitt: Bilder werden in Zeilen gruppiert,
@@ -26,20 +28,21 @@ public static class GalleryLayout
     private const int MaxPerRow = 4;
     private const double Safety = 0.0005;          // Rundungsreserve gegen „Overfull hbox“
 
-    public static string Render(IReadOnlyList<GalleryPhoto> photos)
+    /// <param name="placed">Wird für jedes Foto mit seiner Breite (Anteil von \linewidth) aufgerufen.</param>
+    public static string Render(IReadOnlyList<GalleryPhoto> photos, Action<GalleryPhoto, double>? placed = null)
     {
         if (photos.Count == 0) return string.Empty;
 
         var sb = new StringBuilder();
         sb.AppendLine("\\begin{DiaryGallery}");
-        if (!(photos.Count == 3 && TryRenderFeature(photos, sb)))
+        if (!(photos.Count == 3 && TryRenderFeature(photos, sb, placed)))
         {
             var rows = PartitionRows(photos);
             for (var r = 0; r < rows.Count; r++)
             {
                 if (r > 0) sb.AppendLine($"\\par\\vspace{{{F(Gap)}\\linewidth}}");
                 var maxHeight = rows.Count == 1 ? SingleMaxHeight : LastRowMaxHeight;
-                RenderRow(rows[r], r == rows.Count - 1 ? maxHeight : double.MaxValue, sb);
+                RenderRow(rows[r], r == rows.Count - 1 ? maxHeight : double.MaxValue, sb, placed);
             }
         }
         sb.AppendLine("\\end{DiaryGallery}");
@@ -49,16 +52,17 @@ public static class GalleryLayout
     private static double RowHeight(IReadOnlyList<GalleryPhoto> row)
         => (1.0 - Gap * (row.Count - 1)) / row.Sum(p => p.Aspect);
 
-    private static void RenderRow(IReadOnlyList<GalleryPhoto> row, double maxHeight, StringBuilder sb)
+    private static void RenderRow(IReadOnlyList<GalleryPhoto> row, double maxHeight, StringBuilder sb, Action<GalleryPhoto, double>? placed)
     {
         var height = Math.Min(RowHeight(row), maxHeight);
+        foreach (var photo in row) placed?.Invoke(photo, photo.Aspect * height);
         var cells = row.Select(p => $"\\DiaryPhoto{{{F(p.Aspect * height - Safety)}}}{{{p.File}}}{{{p.Caption}}}");
         sb.AppendLine("\\DiaryGalleryRow");
         sb.AppendLine("\\makebox[\\linewidth][c]{" + string.Join($"\\hspace{{{F(Gap)}\\linewidth}}", cells) + "}");
     }
 
     /// <summary>Großes Bild links, zwei Bilder rechts übereinander – beide Seiten gleich hoch.</summary>
-    private static bool TryRenderFeature(IReadOnlyList<GalleryPhoto> photos, StringBuilder sb)
+    private static bool TryRenderFeature(IReadOnlyList<GalleryPhoto> photos, StringBuilder sb, Action<GalleryPhoto, double>? placed)
     {
         if (photos.Any(p => !string.IsNullOrEmpty(p.Caption))) return false;
 
@@ -69,6 +73,9 @@ public static class GalleryLayout
         var w0 = 1.0 - Gap - w1;
         var height = w0 / a0;
         if (w1 < 0.28 || w1 > 0.5 || height > SingleMaxHeight) return false;
+        placed?.Invoke(photos[0], w0);
+        placed?.Invoke(photos[1], w1);
+        placed?.Invoke(photos[2], w1);
 
         var innerGap = Gap / w1; // innerhalb der rechten Spalte ist \linewidth = w1
         sb.AppendLine("\\DiaryGalleryRow");

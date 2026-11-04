@@ -252,3 +252,18 @@ Fehlerbehebungen:
 - Rechtschreibprüfung (Deutsch) im Tagebuchtext und in den Bildunterschriften; Korrekturvorschläge per Rechtsklick.
 - Formatierung: Strg+B / Strg+I bzw. Knöpfe „F“ und „K“ setzen oder entfernen **fett** und *kursiv*,
   „• Liste“ macht markierte Zeilen zur Liste.
+
+
+## Version 24 (2026-11-04)
+
+Vorabprüfung vor dem Druck:
+
+- Neuer Knopf „Prüfen“: erzeugt `book.tex` (ohne LuaLaTeX) und listet alle Auffälligkeiten auf.
+- „PDF erzeugen“ prüft automatisch und fragt bei Fehlern oder Warnungen nach, bevor LuaLaTeX startet.
+  Reine Hinweise erscheinen nur in der Statuszeile.
+- Geprüft wird:
+  - Fehler: ausgewähltes Foto fehlt oder kann nicht gelesen werden (würde im Buch fehlen).
+  - Auflösung in der tatsächlichen Druckgröße (aus dem Galerie-Layout berechnet):
+    unter 120 dpi Warnung („deutlich unscharf“), unter 200 dpi Hinweis.
+  - Hinweis: Eintrag noch nicht als geprüft markiert.
+- Doppelklick auf eine Zeile (oder „Zum Eintrag“) öffnet den betroffenen Eintrag in der App.
