@@ -24,10 +24,6 @@ public sealed record PreflightIssue(PreflightSeverity Severity, EntryModel? Entr
 /// </summary>
 public sealed class PreflightReport
 {
-    /// <summary>Satzspiegel aus diarybook.sty (A5 148 × 210 mm, innen 19, außen 15, oben 18, unten 20 mm).</summary>
-    public const double TextWidthMm = 114;
-    public const double TextHeightMm = 172;
-
     /// <summary>Unter 200 dpi werden Fotos im Druck sichtbar weicher, unter 120 dpi deutlich unscharf.</summary>
     public const double MinDpi = 200;
     public const double PoorDpi = 120;

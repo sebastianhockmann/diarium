@@ -1,6 +1,29 @@
 # Handoff – DiariumBookStudio
 
-Stand: 2026-11-04 · Version v24
+Stand: 2026-11-04 · Version v25
+
+**Erledigt in v25 (Schritte 3 und 4 zum Teil):** Druckerei-Profil und Buchumschlag.
+- Gewählte Druckerei: **Lulu**, Profil `lulu-a5-pb-premium` (A5-Taschenbuch, Premium-Farbe, 80# gestrichen,
+  matt; `pod_package_id` `0583X0827FCPREPB080CW444MXX`). Begründung: einzige der betrachteten Druckereien mit
+  öffentlicher Druck-API (Schritt 6), A5 verfügbar, Vorgaben veröffentlicht. Quelle der Maße: Lulu Book Creation
+  Guide (Beschnitt 0,125 in, Sicherheitsabstand 0,5 in, Taschenbuch 32–800 Seiten, Rücken = Seiten/444 + 0,06 in,
+  Bundsteg-Tabelle). Profile liegen in `Services/PrintProfiles.cs`; weitere Druckereien = weiterer Eintrag.
+- Umschlag: `Services/CoverExporter.cs` + `Templates/diarycover.sty`; Rückenbreite aus der echten Seitenzahl.
+- Innenteil-Maße kommen aus dem Profil (`bookgeometry.tex`), Bundsteg nach Seitenzahl, ggf. automatischer Neusatz.
+- Fotos > 600 ppi werden auf 450 ppi verkleinert (`Services/ImageExport.cs`, mit Cache).
+- **Getestet** am Projekt Diarium_2026-10-01 (Jan–Okt, 233 Einträge) mit pdfinfo/pdffonts/pdfimages:
+  300 Seiten; Seite mit Beschnitt 437,53 × 613,28 pt (= 154,35 × 216,35 mm), TrimBox 9 pt innen;
+  alle Schriften eingebettet; 869 Bilder, 378–591 ppi (vorher 536 Bilder über 600 ppi); Umschlag
+  910,02 × 613,28 pt (= 321,04 × 216,35 mm), Rücken 18,69 mm. Sichtprüfung Umschlag und Doppelseiten ok.
+  Dabei gefunden und behoben: TrimBox/BleedBox wurden nicht ins PDF geschrieben (`\pdfvariable pageattr`
+  expandiert nicht). Export mit Bild-Cache: 22 s beim ersten, 1 s bei weiteren Läufen; LuaLaTeX ca. 80 s.
+- **Nicht verifiziert** (erst mit API-Zugang möglich, Schritt 6): ob Lulu die Dateien im Validator ohne
+  Beanstandung annimmt, ob der `pod_package_id` für A5 genau so bestellbar ist, Preise und Versand nach DE.
+  Die Lulu-API bietet `/cover-dimensions/` und Dateivalidierung – damit die Formel gegenprüfen.
+- Hinweis: Die Fotos im Diarium-Export sind höchstens 1600 px breit. Für den Umschlag (ca. 157 mm breit)
+  reicht das für ca. 270 ppi – gut, aber unter Lulus Empfehlung von 300 ppi.
+- Hardcover (Case Wrap) bewusst noch nicht: Lulu nennt dafür nur eine Rückentabelle, die Umschlagmaße
+  (Einschlag) sollten über die API ermittelt werden.
 
 **Erledigt in v23 (Schritt 1 der Reihenfolge unten):** Autospeichern (5 s, beim Beenden und vor
 Projektwechsel, Rückfrage nur bei Fehler), atomares Speichern, Strg+S, Rechtschreibprüfung de-DE
@@ -23,7 +46,7 @@ im Idealfall per Knopfdruck direkt an einen Druckdienstleister übergeben.
 
 **Reifegrad: funktionsfähiger Prototyp für den Eigengebrauch.** Der Weg
 Import → Prüfen → PDF funktioniert. Für „ein Klick bis zum gedruckten Buch“ fehlen
-Umschlag und die Anbindung an eine Druckerei.
+nur noch die Bestellung per API (Druckdateien für Lulu entstehen seit v25 automatisch).
 
 Build: `dotnet build` ohne Warnungen und Fehler (.NET 8, WPF). LuaLaTeX (MiKTeX) ist auf dem
 Entwicklungsrechner installiert.
@@ -43,8 +66,7 @@ Entwicklungsrechner installiert.
 ### Schwächen und Risiken
 
 1. ~~**Kein Autospeichern und keine Rückfrage beim Schließen**~~ – behoben in v23.
-2. **Kein Umschlag** – Druckereien verlangen ein separates Umschlag-PDF (Rückseite + Rücken + Vorderseite),
-   dessen Rückenbreite von Seitenzahl und Papier abhängt. Ohne Umschlag ist keine automatische Bestellung möglich.
+2. ~~**Kein Umschlag**~~ – behoben in v25 (Lulu-Profil).
 3. ~~**Keine Druck-Vorabprüfung**~~ – behoben in v24 (Auflösung, fehlende Bilder, ungeprüfte Einträge);
    offen ist nur die Seitenzahl-Prüfung gegen die Grenzen der Druckerei.
 4. **Kein PDF/X, Fotos in RGB** – die meisten Digitaldruckereien akzeptieren RGB-PDFs, aber Farbabweichungen
@@ -114,8 +136,9 @@ Design komplett in `diarybook.sty` steckt:
 
 1. ~~Autospeichern + Rückfrage beim Schließen; Rechtschreibprüfung; Strg+B/Strg+I.~~ *(erledigt in v23)*
 2. ~~Vorabprüfung (Auflösung, fehlende Bilder, ungeprüfte Einträge) als Dialog vor der PDF-Erzeugung.~~ *(erledigt in v24)*
-3. Umschlag-PDF mit berechneter Rückenbreite. *(mittel)*
-4. Druckerei-Profile, Button „Druckfertiges Paket“. *(mittel)*
+3. ~~Umschlag-PDF mit berechneter Rückenbreite.~~ *(erledigt in v25)*
+4. Druckerei-Profile *(Grundlage und Lulu-Profil erledigt in v25)*; offen: weitere Profile (z. B. epubli,
+   Lulu Hardcover) und Button „Druckfertiges Paket“ (Innenteil + Umschlag + Infodatei in einem Ordner/ZIP). *(klein)*
 5. Vorlagenauswahl (2–3 Vorlagen). *(mittel)*
 6. Lulu-API-Anbindung mit Kostenabfrage und Bestellung (Sandbox zuerst). *(groß)*
 7. Unit-Tests für Importer, Escaping und Galerie-Layout; schrittweise Logik aus `MainWindow` herauslösen.
@@ -124,7 +147,11 @@ Design komplett in `diarybook.sty` steckt:
 
 - `DiariumBookStudio.App/MainWindow.xaml(.cs)` – Oberfläche und Ablauf (Import, Export, PDF)
 - `Services/DiariumImporter.cs` – HTML-Export einlesen, Bearbeitungen übernehmen
-- `Services/LatexExporter.cs` – `book.tex` erzeugen, Bilder vorbereiten
+- `Services/LatexExporter.cs` – `book.tex` und `bookgeometry.tex` erzeugen
+- `Services/ImageExport.cs` – Fotos lesen, drehen, auf Druckgröße verkleinern (Cache)
+- `Services/PrintProfiles.cs` – Druckerei-Profile (Lulu), Satzspiegel, Rückenbreite, Bundsteg
+- `Services/CoverExporter.cs` + `Templates/diarycover.sty` – Buchumschlag
+- `Services/Preflight.cs` + `PreflightWindow` – Vorabprüfung
 - `Services/GalleryLayout.cs` – Fotoreihen im Blocksatz
 - `Services/MapService.cs` – OSM-Karten, Kachel-Cache, Reverse-Geocoding
 - `Templates/diarybook.sty` – komplettes Buchdesign

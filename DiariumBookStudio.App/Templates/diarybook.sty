@@ -9,8 +9,8 @@
 %  verwendet dann diese Version statt der mitgelieferten.
 % =====================================================================
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{diarybook}[2026/10/02 DiariumBookStudio Layout v22]
-%  Optionen:  print – 3 mm Beschnitt, TrimBox/BleedBox, Seitenzahl durch 4 teilbar
+\ProvidesPackage{diarybook}[2026/11/04 DiariumBookStudio Layout v25]
+%  Optionen:  print – Beschnitt (\DiaryBleed), TrimBox/BleedBox, Seitenzahl durch 4 teilbar
 %             gray  – Akzente in Graustufen (günstigerer Schwarz-Weiß-Druck für Textseiten)
 
 \newif\ifdiary@print
@@ -20,19 +20,41 @@
 \ProcessOptions\relax
 
 % ---------------------------------------------------------------------
-%  Seitenformat A5 – in der Druckversion mit 3 mm Beschnittzugabe
+%  Seitenformat – Standard A5. Die App schreibt die Maße des gewählten
+%  Druckprofils (Beschnitt, Bundsteg, Ränder) vor \usepackage als Makros
+%  in book.tex; fehlen sie, gelten die Werte unten.
 % ---------------------------------------------------------------------
+\providecommand\DiaryTrimWidth{148mm}
+\providecommand\DiaryTrimHeight{210mm}
+\providecommand\DiaryBleed{3mm}
+\providecommand\DiaryInner{19mm}
+\providecommand\DiaryOuter{15mm}
+\providecommand\DiaryTop{18mm}
+\providecommand\DiaryBottom{20mm}
+\providecommand\DiaryHeadSep{6mm}
+\providecommand\DiaryFootSkip{10mm}
 \RequirePackage{geometry}
 \ifdiary@print
-  \geometry{paperwidth=154mm,paperheight=216mm,
-            layoutwidth=148mm,layoutheight=210mm,
-            layouthoffset=3mm,layoutvoffset=3mm}
+  \geometry{paperwidth=\dimexpr\DiaryTrimWidth+2\dimexpr\DiaryBleed\relax\relax,
+            paperheight=\dimexpr\DiaryTrimHeight+2\dimexpr\DiaryBleed\relax\relax,
+            layoutwidth=\DiaryTrimWidth,layoutheight=\DiaryTrimHeight,
+            layouthoffset=\DiaryBleed,layoutvoffset=\DiaryBleed}
   % Endformat (TrimBox) und Beschnitt (BleedBox) für die Druckerei, Angaben in bp.
-  \pdfvariable pageattr{/TrimBox [8.50394 8.50394 428.03150 603.77953] /BleedBox [0 0 436.53543 612.28346]}
+  \edef\diary@boxes{\directlua{
+    local bp = 65781.76
+    local b = tex.sp("\DiaryBleed") / bp
+    local w = tex.sp("\DiaryTrimWidth") / bp
+    local h = tex.sp("\DiaryTrimHeight") / bp
+    tex.sprint(string.format("/TrimBox [\csstring\%.5f \csstring\%.5f \csstring\%.5f \csstring\%.5f] /BleedBox [0 0 \csstring\%.5f \csstring\%.5f]",
+      b, b, b + w, b + h, w + 2 * b, h + 2 * b))
+  }}
+  % pageattr ist ein Token-Register und expandiert nicht von selbst.
+  \pdfvariable pageattr\expandafter{\diary@boxes}
 \else
-  \geometry{paperwidth=148mm,paperheight=210mm}
+  \geometry{paperwidth=\DiaryTrimWidth,paperheight=\DiaryTrimHeight}
 \fi
-\geometry{inner=19mm,outer=15mm,top=18mm,bottom=20mm,headsep=6mm,footskip=10mm}
+\geometry{inner=\DiaryInner,outer=\DiaryOuter,top=\DiaryTop,bottom=\DiaryBottom,
+          headsep=\DiaryHeadSep,footskip=\DiaryFootSkip}
 
 % ---------------------------------------------------------------------
 %  Farben

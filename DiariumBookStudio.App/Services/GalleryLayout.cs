@@ -6,7 +6,7 @@ using System.Text;
 
 namespace DiariumBookStudio.Services;
 
-/// <param name="File">Pfad relativ zur .tex-Datei.</param>
+/// <param name="File">Kennung des Fotos; die tatsächliche Datei liefert der Rückruf in Render.</param>
 /// <param name="Aspect">Breite / Höhe.</param>
 /// <param name="Caption">Bereits für LaTeX maskierte Bildunterschrift.</param>
 /// <param name="PixelWidth">Breite in Pixeln (nach EXIF-Drehung), für die Auflösungsprüfung.</param>
@@ -28,21 +28,22 @@ public static class GalleryLayout
     private const int MaxPerRow = 4;
     private const double Safety = 0.0005;          // Rundungsreserve gegen „Overfull hbox“
 
-    /// <param name="placed">Wird für jedes Foto mit seiner Breite (Anteil von \linewidth) aufgerufen.</param>
-    public static string Render(IReadOnlyList<GalleryPhoto> photos, Action<GalleryPhoto, double>? placed = null)
+    /// <param name="place">Wird für jedes Foto mit seiner Breite (Anteil von \linewidth) aufgerufen und
+    /// liefert den Pfad der passend zur Druckgröße geschriebenen Datei.</param>
+    public static string Render(IReadOnlyList<GalleryPhoto> photos, Func<GalleryPhoto, double, string> place)
     {
         if (photos.Count == 0) return string.Empty;
 
         var sb = new StringBuilder();
         sb.AppendLine("\\begin{DiaryGallery}");
-        if (!(photos.Count == 3 && TryRenderFeature(photos, sb, placed)))
+        if (!(photos.Count == 3 && TryRenderFeature(photos, sb, place)))
         {
             var rows = PartitionRows(photos);
             for (var r = 0; r < rows.Count; r++)
             {
                 if (r > 0) sb.AppendLine($"\\par\\vspace{{{F(Gap)}\\linewidth}}");
                 var maxHeight = rows.Count == 1 ? SingleMaxHeight : LastRowMaxHeight;
-                RenderRow(rows[r], r == rows.Count - 1 ? maxHeight : double.MaxValue, sb, placed);
+                RenderRow(rows[r], r == rows.Count - 1 ? maxHeight : double.MaxValue, sb, place);
             }
         }
         sb.AppendLine("\\end{DiaryGallery}");
@@ -52,17 +53,16 @@ public static class GalleryLayout
     private static double RowHeight(IReadOnlyList<GalleryPhoto> row)
         => (1.0 - Gap * (row.Count - 1)) / row.Sum(p => p.Aspect);
 
-    private static void RenderRow(IReadOnlyList<GalleryPhoto> row, double maxHeight, StringBuilder sb, Action<GalleryPhoto, double>? placed)
+    private static void RenderRow(IReadOnlyList<GalleryPhoto> row, double maxHeight, StringBuilder sb, Func<GalleryPhoto, double, string> place)
     {
         var height = Math.Min(RowHeight(row), maxHeight);
-        foreach (var photo in row) placed?.Invoke(photo, photo.Aspect * height);
-        var cells = row.Select(p => $"\\DiaryPhoto{{{F(p.Aspect * height - Safety)}}}{{{p.File}}}{{{p.Caption}}}");
+        var cells = row.Select(p => $"\\DiaryPhoto{{{F(p.Aspect * height - Safety)}}}{{{place(p, p.Aspect * height)}}}{{{p.Caption}}}").ToList();
         sb.AppendLine("\\DiaryGalleryRow");
         sb.AppendLine("\\makebox[\\linewidth][c]{" + string.Join($"\\hspace{{{F(Gap)}\\linewidth}}", cells) + "}");
     }
 
     /// <summary>Großes Bild links, zwei Bilder rechts übereinander – beide Seiten gleich hoch.</summary>
-    private static bool TryRenderFeature(IReadOnlyList<GalleryPhoto> photos, StringBuilder sb, Action<GalleryPhoto, double>? placed)
+    private static bool TryRenderFeature(IReadOnlyList<GalleryPhoto> photos, StringBuilder sb, Func<GalleryPhoto, double, string> place)
     {
         if (photos.Any(p => !string.IsNullOrEmpty(p.Caption))) return false;
 
@@ -73,17 +73,17 @@ public static class GalleryLayout
         var w0 = 1.0 - Gap - w1;
         var height = w0 / a0;
         if (w1 < 0.28 || w1 > 0.5 || height > SingleMaxHeight) return false;
-        placed?.Invoke(photos[0], w0);
-        placed?.Invoke(photos[1], w1);
-        placed?.Invoke(photos[2], w1);
+        var file0 = place(photos[0], w0);
+        var file1 = place(photos[1], w1);
+        var file2 = place(photos[2], w1);
 
         var innerGap = Gap / w1; // innerhalb der rechten Spalte ist \linewidth = w1
         sb.AppendLine("\\DiaryGalleryRow");
-        sb.Append($"\\DiaryPhoto{{{F(w0 - Safety)}}}{{{photos[0].File}}}{{}}");
+        sb.Append($"\\DiaryPhoto{{{F(w0 - Safety)}}}{{{file0}}}{{}}");
         sb.Append($"\\hspace{{{F(Gap)}\\linewidth}}");
         sb.AppendLine($"\\begin{{minipage}}[t]{{{F(w1 - Safety)}\\linewidth}}\\vspace{{0pt}}%");
-        sb.AppendLine($"\\DiaryPhoto{{1}}{{{photos[1].File}}}{{}}\\par\\vspace{{{F(innerGap)}\\linewidth}}\\nointerlineskip");
-        sb.AppendLine($"\\noindent\\DiaryPhoto{{1}}{{{photos[2].File}}}{{}}%");
+        sb.AppendLine($"\\DiaryPhoto{{1}}{{{file1}}}{{}}\\par\\vspace{{{F(innerGap)}\\linewidth}}\\nointerlineskip");
+        sb.AppendLine($"\\noindent\\DiaryPhoto{{1}}{{{file2}}}{{}}%");
         sb.AppendLine("\\end{minipage}");
         return true;
     }

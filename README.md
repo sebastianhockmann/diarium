@@ -267,3 +267,25 @@ Vorabprüfung vor dem Druck:
     unter 120 dpi Warnung („deutlich unscharf“), unter 200 dpi Hinweis.
   - Hinweis: Eintrag noch nicht als geprüft markiert.
 - Doppelklick auf eine Zeile (oder „Zum Eintrag“) öffnet den betroffenen Eintrag in der App.
+
+
+## Version 25 (2026-11-04)
+
+Druckerei-Profil und Buchumschlag:
+
+- Neues Druckprofil **Lulu · A5 Taschenbuch · Premium-Farbe** (Voreinstellung, Produktcode
+  `0583X0827FCPREPB080CW444MXX`). Vorgaben aus dem Lulu Book Creation Guide: Beschnitt 3,175 mm,
+  Sicherheitsabstand 12,7 mm, 32–800 Seiten, Rückenbreite = Seiten / 444 + 0,06 in, Bundsteg nach Seitenzahl.
+- „Druckversion mit Umschlag“ erzeugt zusätzlich zum Innenteil `cover_….pdf`: Rückseite, Rücken und
+  Vorderseite als ein Blatt mit Beschnitt, Rückenbreite aus der tatsächlichen Seitenzahl.
+  Layout in `Templates/diarycover.sty` (eigene Version im Projektordner hat Vorrang).
+- Umschlagfoto per Knopf „Als Umschlagfoto“ am Bild; sonst automatisch das erste Titelbild bzw. erste Foto.
+  Rückentext erst ab 81 Seiten (Lulu-Empfehlung).
+- Innenteil der Druckversion: Kopfzeile und Seitenzahl innerhalb des Sicherheitsabstands, Innenrand
+  wächst mit der Seitenzahl (z. B. 25,4 mm bei 151–400 Seiten). Passt der Innenrand nach dem ersten Satz
+  nicht zur Seitenzahl, setzt die App das Buch automatisch mit angepasstem Rand neu.
+  Die Maße stehen in `bookgeometry.tex` (wird von `book.tex` eingebunden).
+- Fotos über 600 ppi in Druckgröße werden auf 450 ppi verkleinert (Lulu: höchstens 600 ppi);
+  die verkleinerten Bilder werden zwischengespeichert. Bildmaße werden nur noch aus dem Dateikopf gelesen.
+- Nach der Erzeugung zeigt die App Seitenzahl, Umschlagmaße und Rückenbreite sowie Probleme
+  (z. B. Seitenzahl außerhalb der Grenzen der Druckerei).

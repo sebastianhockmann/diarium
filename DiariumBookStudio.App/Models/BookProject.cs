@@ -28,6 +28,15 @@ public class BookProject
     /// <summary>Nur Einträge dieses Jahres ins Buch übernehmen (null = alle).</summary>
     public int? Year { get; set; }
 
+    /// <summary>Druckprodukt (siehe Services/PrintProfiles), bestimmt Beschnitt, Ränder und Umschlagmaße.</summary>
+    public string PrintProfileId { get; set; } = Services.PrintProfiles.Default.Id;
+
+    /// <summary>Seitenzahl der letzten Druckversion – Startwert für Bundsteg und Rückenbreite.</summary>
+    public int? LastPageCount { get; set; }
+
+    /// <summary>Foto für den Buchumschlag (RelativePath eines Bildes). Leer: automatisch wählen.</summary>
+    public string CoverImage { get; set; } = string.Empty;
+
     public ObservableCollection<EntryModel> Entries { get; set; } = new();
 
     /// <summary>Die Einträge, die ins Buch kommen (berücksichtigt das gewählte Jahr).</summary>

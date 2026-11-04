@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:DiariumBookStudio.Models"
         xmlns:local="clr-namespace:DiariumBookStudio"
-        Title="Diarium Book Studio v24" Height="820" Width="1350" MinHeight="650" MinWidth="1100"
+        Title="Diarium Book Studio v25" Height="820" Width="1350" MinHeight="650" MinWidth="1100"
         Closing="Window_Closing">
     <Window.Resources>
         <local:ThumbnailConverter x:Key="Thumbnail" DecodePixelWidth="240" />
@@ -101,10 +101,15 @@
                 <TextBlock Text="Jahr:" VerticalAlignment="Center" Margin="16,0,6,0" />
                 <ComboBox x:Name="YearComboBox" Width="90" SelectionChanged="YearComboBox_SelectionChanged"
                           ToolTip="Nur Einträge dieses Jahres anzeigen und ins Buch übernehmen" />
-                <CheckBox x:Name="PrintVersionCheckBox" Content="Druckversion (3 mm Beschnitt, Seitenzahl durch 4 teilbar)" VerticalAlignment="Center" Margin="16,0,0,0"
+                <CheckBox x:Name="PrintVersionCheckBox" Content="Druckversion mit Umschlag" VerticalAlignment="Center" Margin="16,0,0,0"
+                          ToolTip="Beschnitt, Ränder und Bundsteg nach Vorgaben der Druckerei; zusätzlich wird der Umschlag mit passender Rückenbreite erzeugt."
                           Checked="BookSettings_Changed" Unchecked="BookSettings_Changed" />
+                <TextBlock Text="Druckerei:" VerticalAlignment="Center" Margin="12,0,6,0" />
+                <ComboBox x:Name="PrintProfileComboBox" Width="250" SelectionChanged="BookSettings_Changed"
+                          ToolTip="Druckprodukt: bestimmt Beschnitt, Sicherheitsabstand, Bundsteg, Seitenzahlgrenzen und Umschlagmaße" />
+                <TextBlock x:Name="CoverImageText" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="Gray" />
                 <CheckBox x:Name="GrayAccentsCheckBox" Content="Akzente in Graustufen" VerticalAlignment="Center" Margin="16,0,0,0"
-                          ToolTip="Datum, Symbole, Linien und Karten in Grau. Seiten ohne Fotos zählen dann beim Druck als Schwarz-Weiß-Seiten (günstiger)."
+                          ToolTip="Datum, Symbole, Linien und Karten in Grau. Seiten ohne Fotos zählen dann bei Druckereien mit Seitenpreisen (z. B. epubli) als Schwarz-Weiß-Seiten. Lulu berechnet Farbe für das ganze Buch – dort ohne Preisvorteil."
                           Checked="BookSettings_Changed" Unchecked="BookSettings_Changed" />
             </WrapPanel>
         </Border>
@@ -212,6 +217,8 @@
                                                     <TextBlock Text="Reihenfolge:" VerticalAlignment="Center" Margin="0,0,6,0" />
                                                     <Button Content="↑" Width="28" Margin="0,0,3,0" Click="MoveImageUp_Click" />
                                                     <Button Content="↓" Width="28" Click="MoveImageDown_Click" />
+                                                    <Button Content="Als Umschlagfoto" Padding="6,0" Margin="10,0,0,0" Click="CoverImage_Click"
+                                                            ToolTip="Dieses Foto auf die Vorderseite des Buchumschlags setzen" />
                                                 </StackPanel>
                                                 <TextBox Text="{Binding Caption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0" Padding="4" ToolTip="Bildunterschrift"
                                                          SpellCheck.IsEnabled="True" Language="de-DE" />

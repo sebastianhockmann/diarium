@@ -22,7 +22,7 @@ namespace DiariumBookStudio;
 
 public partial class MainWindow : Window
 {
-    public string AppVersion { get; } = "DiariumBookStudio v24";
+    public string AppVersion { get; } = "DiariumBookStudio v25";
 
     private BookProject? _project;
     private ObservableCollection<MonthGroup> _visibleMonths = new();
@@ -266,17 +266,54 @@ public partial class MainWindow : Window
                 return;
             }
 
-            SetBuildProgress(true, "Starte LuaLaTeX, Lauf 1 von 2...");
-            await RunLuaLatexAsync(texPath, jobName);
-
-            SetBuildProgress(true, "Starte LuaLaTeX, Lauf 2 von 2...");
-            await RunLuaLatexAsync(texPath, jobName);
-
+            var pages = await CompileInteriorAsync(texPath, jobName);
             if (!File.Exists(pdfPath))
                 throw new FileNotFoundException("LuaLaTeX wurde ausgeführt, aber die PDF-Datei wurde nicht erzeugt.", pdfPath);
 
-            SetBuildProgress(false, $"PDF erzeugt: {pdfPath} – Vorabprüfung: {report.Summary}");
+            if (!_project.PrintVersion)
+            {
+                SetBuildProgress(false, $"PDF erzeugt: {pdfPath} ({pages} Seiten) – Vorabprüfung: {report.Summary}");
+                OpenFile(pdfPath);
+                return;
+            }
+
+            // Druckversion: Der Bundsteg hängt von der Seitenzahl ab. Passt er nicht zur geschätzten
+            // Seitenzahl, Seitenmaße anpassen und neu setzen (nur beim ersten Lauf oder bei großen Änderungen).
+            var used = LatexExporter.GeometryFor(_project);
+            var needed = LatexExporter.GeometryFor(_project, pages);
+            _project.LastPageCount = pages;
+            _dirty = true;
+            if (needed != used)
+            {
+                LatexExporter.WriteGeometry(outputDir, needed);
+                pages = await CompileInteriorAsync(texPath, jobName, "Bundsteg an Seitenzahl angepasst, ");
+                _project.LastPageCount = pages;
+            }
+
+            var profile = PrintProfiles.Find(_project.PrintProfileId);
+            SetBuildProgress(true, "Erzeuge Umschlag...");
+            var coverReport = new PreflightReport();
+            var coverTex = CoverExporter.Export(_project, profile, pages, outputDir, coverReport);
+            var coverJob = $"cover_{DateTime.Now:yyyyMMdd_HHmmss}";
+            await RunLuaLatexAsync(coverTex, coverJob);
+            var coverPath = Path.Combine(outputDir, $"{coverJob}.pdf");
+            TrySave(automatic: true);
+
+            var (coverWidth, coverHeight, spine) = profile.CoverSize(pages);
+            var summary = new StringBuilder()
+                .AppendLine($"Druckdateien für {profile.Name}:")
+                .AppendLine()
+                .AppendLine($"Innenteil: {Path.GetFileName(pdfPath)} – {pages} Seiten")
+                .AppendLine($"Umschlag: {Path.GetFileName(coverPath)} – {coverWidth:0.0} × {coverHeight:0.0} mm, Buchrücken {spine:0.0} mm");
+            if (profile.CheckPageCount(pages) is { } pageProblem)
+                summary.AppendLine().AppendLine("⚠ " + pageProblem);
+            foreach (var issue in coverReport.Issues)
+                summary.AppendLine().Append(issue.Severity == PreflightSeverity.Hinweis ? "ℹ " : "⚠ ").AppendLine(issue.Message);
+
+            SetBuildProgress(false, $"Druckdateien erzeugt: {pages} Seiten, Umschlag {coverWidth:0.0} × {coverHeight:0.0} mm – Vorabprüfung: {report.Summary}");
             OpenFile(pdfPath);
+            OpenFile(coverPath);
+            MessageBox.Show(this, summary.ToString(), "Druckdateien erzeugt", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
@@ -365,7 +402,22 @@ public partial class MainWindow : Window
         OpenFile(outputDir);
     }
 
-    private static async Task RunLuaLatexAsync(string texPath, string jobName)
+    /// <summary>Zwei LuaLaTeX-Läufe (Inhaltsverzeichnis), liefert die Seitenzahl.</summary>
+    private async Task<int> CompileInteriorAsync(string texPath, string jobName, string prefix = "")
+    {
+        SetBuildProgress(true, $"{prefix}LuaLaTeX, Lauf 1 von 2...");
+        await RunLuaLatexAsync(texPath, jobName);
+        SetBuildProgress(true, $"{prefix}LuaLaTeX, Lauf 2 von 2...");
+        var output = await RunLuaLatexAsync(texPath, jobName);
+        // TeX bricht lange Protokollzeilen um – daher auch über Zeilenenden hinweg suchen.
+        var match = Regex.Match(output, @"Output written on .*?\(\s*(\d+)\s+pages?", RegexOptions.Singleline);
+        if (!match.Success)
+            throw new InvalidOperationException("Die Seitenzahl des PDFs konnte nicht aus der LuaLaTeX-Ausgabe ermittelt werden.");
+        return int.Parse(match.Groups[1].Value);
+    }
+
+    /// <returns>Ausgabe von LuaLaTeX.</returns>
+    private static async Task<string> RunLuaLatexAsync(string texPath, string jobName)
     {
         var workingDirectory = Path.GetDirectoryName(texPath)
             ?? throw new InvalidOperationException("Der Ausgabeordner konnte nicht bestimmt werden.");
@@ -411,6 +463,7 @@ public partial class MainWindow : Window
             await File.WriteAllTextAsync(logPath, stdout + Environment.NewLine + stderr, Encoding.UTF8);
             throw new InvalidOperationException(LatexErrorReport.Describe(stdout, texPath, logPath));
         }
+        return stdout;
     }
 
     private IProgress<string> CreateProgress() => new Progress<string>(message => StatusText.Text = message);
@@ -539,6 +592,9 @@ public partial class MainWindow : Window
             BookSubtitleBox.Text = _project?.BookSubtitle ?? string.Empty;
             PrintVersionCheckBox.IsChecked = _project?.PrintVersion == true;
             GrayAccentsCheckBox.IsChecked = _project?.GrayAccents == true;
+            PrintProfileComboBox.ItemsSource = PrintProfiles.All;
+            PrintProfileComboBox.SelectedItem = _project is null ? null : PrintProfiles.Find(_project.PrintProfileId);
+            UpdateCoverImageText();
 
             // Erster Eintrag „Alle Jahre“ (null), danach die vorhandenen Jahre.
             var years = new List<object> { AllYears };
@@ -561,8 +617,24 @@ public partial class MainWindow : Window
         _project.BookSubtitle = BookSubtitleBox.Text;
         _project.PrintVersion = PrintVersionCheckBox.IsChecked == true;
         _project.GrayAccents = GrayAccentsCheckBox.IsChecked == true;
+        if (PrintProfileComboBox.SelectedItem is PrintProfile profile)
+            _project.PrintProfileId = profile.Id;
         _dirty = true;
     }
+
+    private void CoverImage_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not ImageItem image || _project is null) return;
+        _project.CoverImage = image.RelativePath;
+        _dirty = true;
+        UpdateCoverImageText();
+        StatusText.Text = $"Umschlagfoto: {image.FileName}";
+    }
+
+    private void UpdateCoverImageText()
+        => CoverImageText.Text = _project is null ? string.Empty
+            : string.IsNullOrEmpty(_project.CoverImage) ? "Umschlagfoto: automatisch"
+            : $"Umschlagfoto: {Path.GetFileName(_project.CoverImage)}";
 
     private void YearComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

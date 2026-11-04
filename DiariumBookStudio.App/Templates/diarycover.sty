@@ -1,0 +1,154 @@
+% =====================================================================
+%  diarycover.sty – Buchumschlag für DiariumBookStudio
+%
+%  Ein Umschlag ist ein einziges Blatt: Rückseite | Buchrücken | Vorderseite,
+%  ringsum mit Beschnitt. Die Maße (Endformat, Rückenbreite, Beschnitt,
+%  Sicherheitsabstand) schreibt die App passend zum Druckprofil und zur
+%  Seitenzahl in cover.tex.
+%
+%  Eigene Anpassungen: diese Datei als „diarycover.sty“ in den Projektordner
+%  kopieren und dort ändern – sie hat beim Export Vorrang.
+% =====================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{diarycover}[2026/11/04 DiariumBookStudio Umschlag v25]
+
+\providecommand\DiaryTrimWidth{148mm}
+\providecommand\DiaryTrimHeight{210mm}
+\providecommand\DiaryBleed{3.175mm}
+\providecommand\DiarySpine{20mm}
+\providecommand\DiarySafety{12.7mm}
+\providecommand\DiarySpineFontSize{10}
+
+% ---------------------------------------------------------------------
+%  Maße
+% ---------------------------------------------------------------------
+\newlength\dc@trimw  \setlength\dc@trimw{\DiaryTrimWidth}
+\newlength\dc@trimh  \setlength\dc@trimh{\DiaryTrimHeight}
+\newlength\dc@bleed  \setlength\dc@bleed{\DiaryBleed}
+\newlength\dc@spine  \setlength\dc@spine{\DiarySpine}
+\newlength\dc@safe   \setlength\dc@safe{\DiarySafety}
+\newlength\dc@paperw \setlength\dc@paperw{\dimexpr2\dc@trimw+\dc@spine+2\dc@bleed\relax}
+\newlength\dc@paperh \setlength\dc@paperh{\dimexpr\dc@trimh+2\dc@bleed\relax}
+% Falzlinien des Rückens und Mitten der Flächen
+\newlength\dc@spinel \setlength\dc@spinel{\dimexpr\dc@bleed+\dc@trimw\relax}
+\newlength\dc@spiner \setlength\dc@spiner{\dimexpr\dc@spinel+\dc@spine\relax}
+\newlength\dc@spinec \setlength\dc@spinec{\dimexpr\dc@spinel+0.5\dc@spine\relax}
+\newlength\dc@backc  \setlength\dc@backc{\dimexpr\dc@bleed+0.5\dc@trimw\relax}
+\newlength\dc@frontc \setlength\dc@frontc{\dimexpr\dc@spiner+0.5\dc@trimw\relax}
+\newlength\dc@midy   \setlength\dc@midy{0.5\dc@paperh}
+% Textbreite innerhalb des Sicherheitsabstands
+\newlength\dc@textw  \setlength\dc@textw{\dimexpr\dc@trimw-2\dc@safe\relax}
+% Foto: obere 60 % der Vorderseite, oben und außen bis in den Beschnitt
+\newlength\dc@photob \setlength\dc@photob{\dimexpr\dc@bleed+0.4\dc@trimh\relax}
+\newlength\dc@photow \setlength\dc@photow{\dimexpr\dc@paperw-\dc@spiner\relax}
+\newlength\dc@photoh \setlength\dc@photoh{\dimexpr\dc@paperh-\dc@photob\relax}
+\newlength\dc@photocx \setlength\dc@photocx{\dimexpr\dc@spiner+0.5\dc@photow\relax}
+\newlength\dc@photocy \setlength\dc@photocy{\dimexpr\dc@photob+0.5\dc@photoh\relax}
+% Lage des Titelblocks: unter dem Foto bzw. ohne Foto etwas über der Mitte
+\newlength\dc@titley \setlength\dc@titley{\dimexpr\dc@bleed+0.2\dc@trimh\relax}
+\newlength\dc@titleyfree \setlength\dc@titleyfree{\dimexpr\dc@bleed+0.56\dc@trimh\relax}
+\newlength\dc@backy  \setlength\dc@backy{\dimexpr\dc@bleed+0.6\dc@trimh\relax}
+
+\RequirePackage{geometry}
+\geometry{paperwidth=\dc@paperw,paperheight=\dc@paperh,margin=0pt,noheadfoot}
+
+% ---------------------------------------------------------------------
+%  Farben und Schrift (wie im Innenteil, siehe diarybook.sty)
+% ---------------------------------------------------------------------
+\RequirePackage{xcolor}
+\definecolor{DiaryInk}{gray}{0.13}
+\definecolor{DiaryMuted}{gray}{0.42}
+\definecolor{DiaryAccent}{HTML}{2E6A70}
+\definecolor{DiaryPaper}{HTML}{F7F4EE}
+
+\RequirePackage{fontspec}
+\IfFontExistsTF{seguiemj.ttf}{%
+  \directlua{luaotfload.add_fallback("diaryemoji", {"seguiemj.ttf:mode=harf;"})}%
+  \defaultfontfeatures{RawFeature={fallback=diaryemoji}}%
+}{}
+\IfFontExistsTF{EBGaramond-Regular.otf}{%
+  \setmainfont{EBGaramond}[Extension=.otf,UprightFont=*-Regular,ItalicFont=*-Italic,
+    BoldFont=*-SemiBold,BoldItalicFont=*-SemiBoldItalic,Numbers=OldStyle]%
+}{%
+  \IfFontExistsTF{LibertinusSerif-Regular.otf}{%
+    \setmainfont{LibertinusSerif}[Extension=.otf,UprightFont=*-Regular,ItalicFont=*-Italic,
+      BoldFont=*-Semibold,BoldItalicFont=*-SemiboldItalic]%
+  }{%
+    \setmainfont{Latin Modern Roman}%
+  }%
+}
+\RequirePackage[ngerman]{babel}
+\RequirePackage{graphicx}
+\RequirePackage{tikz}
+
+\pagestyle{empty}
+\setlength\parindent{0pt}
+\setlength\topskip{0pt}
+
+% ---------------------------------------------------------------------
+%  Bausteine
+% ---------------------------------------------------------------------
+\newcommand\DiaryCoverTitleBlock[3]{%
+  {\color{DiaryAccent}\rule{24mm}{0.6pt}\par}
+  \vspace{5mm}
+  {\fontsize{26}{31}\selectfont\color{DiaryInk}#1\par}
+  \if\relax\detokenize{#2}\relax\else
+    \vspace{2.5mm}{\large\itshape\color{DiaryMuted}#2\par}
+  \fi
+  \if\relax\detokenize{#3}\relax\else
+    \vspace{5mm}{\small\color{DiaryAccent}\scshape\addfontfeatures{LetterSpace=10}\MakeLowercase{#3}\par}
+  \fi
+}
+
+\newcommand\DiaryCoverBack[2]{%
+  \color{white}
+  \if\relax\detokenize{#1}\relax\else
+    {\scshape\addfontfeatures{LetterSpace=10}\MakeLowercase{#1}\par}
+    \vspace{4mm}
+  \fi
+  {\color{white}\rule{18mm}{0.4pt}\par}
+  \if\relax\detokenize{#2}\relax\else
+    \vspace{4mm}{\small #2\par}
+  \fi
+}
+
+% Foto so skalieren, dass es die Fläche füllt (#1: w = auf Breite, h = auf Höhe)
+\newcommand\dc@photo[2]{%
+  \if w#1\includegraphics[width=\dc@photow]{#2}\else\includegraphics[height=\dc@photoh]{#2}\fi}
+
+% ---------------------------------------------------------------------
+%  Umschlag
+%  #1 Titel  #2 Untertitel  #3 Zeitraum  #4 Fotodatei (leer = ohne Foto)
+%  #5 w|h (Foto auf Breite oder Höhe skalieren)  #6 Statistik für die Rückseite
+%  #7 Text auf dem Buchrücken (leer = keiner, z. B. bei dünnen Büchern)
+% ---------------------------------------------------------------------
+\newcommand\DiaryCover[7]{%
+  \noindent\begin{tikzpicture}
+    \useasboundingbox (0,0) rectangle (\dc@paperw,\dc@paperh);
+    % Rückseite und Rücken in der Akzentfarbe, Vorderseite hell
+    \fill[DiaryAccent] (0,0) rectangle (\dc@paperw,\dc@paperh);
+    \fill[DiaryPaper] (\dc@spiner,0) rectangle (\dc@paperw,\dc@paperh);
+    \if\relax\detokenize{#4}\relax
+      \node[text width=\dc@textw,align=center,inner sep=0pt] at (\dc@frontc,\dc@titleyfree)
+        {\DiaryCoverTitleBlock{#1}{#2}{#3}};
+    \else
+      \begin{scope}
+        \clip (\dc@spiner,\dc@photob) rectangle (\dc@paperw,\dc@paperh);
+        \node[inner sep=0pt] at (\dc@photocx,\dc@photocy) {\dc@photo{#5}{#4}};
+      \end{scope}
+      \node[text width=\dc@textw,align=center,inner sep=0pt] at (\dc@frontc,\dc@titley)
+        {\DiaryCoverTitleBlock{#1}{#2}{#3}};
+    \fi
+    % Rückseite
+    \node[text width=\dc@textw,align=center,inner sep=0pt] at (\dc@backc,\dc@backy)
+      {\DiaryCoverBack{#3}{#6}};
+    % Buchrücken, von oben nach unten lesbar
+    \if\relax\detokenize{#7}\relax\else
+      \node[rotate=-90,inner sep=0pt,text=white,
+            font=\fontsize{\DiarySpineFontSize}{\DiarySpineFontSize}\selectfont\addfontfeatures{LetterSpace=6}]
+        at (\dc@spinec,\dc@midy) {#7};
+    \fi
+  \end{tikzpicture}%
+}
+
+\endinput
